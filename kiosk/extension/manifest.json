@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Autodarts Kiosk Controls",
+  "version": "1.0.0",
+  "description": "Switches between Autodarts Play and the local Board Manager.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://play.autodarts.io/*",
+        "http://127.0.0.1:3180/*"
+      ],
+      "js": ["controls.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
