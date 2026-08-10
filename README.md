@@ -130,6 +130,16 @@ The helper refuses disks not marked removable and the disk backing `/`, asks
 for the exact phrase `FLASH /dev/sdX`, writes the image, and verifies every
 written byte with SHA-256.
 
+## Continuous delivery
+
+Every push to `main` builds the complete installer ISO in GitHub Actions. The
+ISO and `SHA256SUMS` are available as a workflow artifact for seven days.
+
+Pushing a tag matching `v*` builds the same pinned source and publishes the ISO
+and checksum on the corresponding GitHub release. The build uses one Nix job
+and two compiler cores so it remains within the memory available on hosted
+runners. The workflow can also be started manually from the Actions page.
+
 ## Install from an existing NixOS environment
 
 The generic installer is useful when the machine is already in a NixOS live
@@ -206,6 +216,7 @@ navigation, extension origins, installer safeguards, JSON, and shell scripts.
 | `kiosk/extension/` | Full-screen Play and Board Manager controls |
 | `scripts/flash-installer.sh` | Guarded Linux USB writer and verifier |
 | `tests/` | NixOS user-journey and source-policy checks |
+| `.github/workflows/` | Checks, installer builds, artifacts, and releases |
 | `flake.nix` | Public systems, packages, checks, and module outputs |
 
 ## Contributing and security

@@ -1,0 +1,96 @@
+name: Build installer
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: installer-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
+
+jobs:
+  installer:
+    name: Installer ISO
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+
+      - name: Build installer ISO
+        run: |
+          nix build .#installer-iso \
+            --out-link result \
+            --max-jobs 1 \
+            --cores 2 \
+            --print-build-logs
+
+      - name: Stage release files
+        id: stage
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            version="${REF_NAME#v}"
+          else
+            version="${REVISION:0:12}"
+          fi
+
+          iso=$(find result/iso -maxdepth 1 -type f -name '*.iso' -print -quit)
+          [[ -n "$iso" ]] || { echo 'Installer ISO was not produced' >&2; exit 1; }
+
+          mkdir -p dist
+          output="dist/autodarts-beelink-appliance-${version}.iso"
+          cp --reflink=auto "$iso" "$output"
+          (
+            cd dist
+            sha256sum "$(basename "$output")" > SHA256SUMS
+          )
+
+          echo "iso=$output" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: autodarts-installer-${{ github.sha }}
+          path: |
+            ${{ steps.stage.outputs.iso }}
+            dist/SHA256SUMS
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+      - name: Publish tagged release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "${{ steps.stage.outputs.iso }}#Autodarts NixOS installer ISO" \
+              "dist/SHA256SUMS#SHA-256 checksums" \
+              --clobber
+          else
+            gh release create "$TAG" \
+              "${{ steps.stage.outputs.iso }}#Autodarts NixOS installer ISO" \
+              "dist/SHA256SUMS#SHA-256 checksums" \
+              --verify-tag \
+              --generate-notes \
+              --title "Autodarts NixOS Appliance $TAG"
+          fi
