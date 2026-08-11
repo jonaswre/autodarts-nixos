@@ -18,7 +18,7 @@
     let
       system = "x86_64-linux";
       mkSystem =
-        disk:
+        disk: rotation:
         nixpkgs.lib.nixosSystem {
           inherit system;
           specialArgs = { inherit disk; };
@@ -26,9 +26,16 @@
             disko.nixosModules.disko
             ./nixos/disk.nix
             ./nixos/configuration.nix
+            { services.autodarts-kiosk.rotation = nixpkgs.lib.mkForce rotation; }
           ];
         };
-      beelinkSystem = mkSystem "/dev/nvme0n1";
+      targetSystems = {
+        normal = mkSystem "/dev/nvme0n1" "normal";
+        "90" = mkSystem "/dev/nvme0n1" "90";
+        "180" = mkSystem "/dev/nvme0n1" "180";
+        "270" = mkSystem "/dev/nvme0n1" "270";
+      };
+      beelinkSystem = targetSystems.normal;
     in
     {
       nixosModules.default = ./nixos/kiosk.nix;
@@ -37,7 +44,9 @@
         inherit system;
         specialArgs = {
           inherit self disko;
-          targetSystem = beelinkSystem.config.system.build.toplevel;
+          targetSystems = nixpkgs.lib.mapAttrs (
+            _name: systemConfig: systemConfig.config.system.build.toplevel
+          ) targetSystems;
         };
         modules = [ ./nixos/installer.nix ];
       };
@@ -49,6 +58,7 @@
         nixos = self.nixosConfigurations.beelink.config.system.build.toplevel;
         kiosk = import ./tests/kiosk.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         github-keys = import ./tests/github-keys.nix { pkgs = nixpkgs.legacyPackages.${system}; };
+        rotation-choice = import ./tests/rotation-choice.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         source = import ./tests/source.nix { pkgs = nixpkgs.legacyPackages.${system}; };
       };
       formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt;

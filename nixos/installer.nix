@@ -5,11 +5,12 @@
   modulesPath,
   self,
   disko,
-  targetSystem,
+  targetSystems,
   ...
 }:
 let
   githubKeys = import ./github-keys.nix { inherit pkgs; };
+  rotationChoice = import ./rotation-choice.nix { inherit pkgs; };
   source = builtins.path {
     path = ../.;
     name = "autodarts-nixos-source";
@@ -86,11 +87,31 @@ let
         ssh_keys="$(${githubKeys}/bin/autodarts-github-keys "$github_user")"
       fi
 
+      echo
+      echo "Display orientation:"
+      echo "  1) Landscape (normal)"
+      echo "  2) Portrait, monitor rotated clockwise (90 degrees)"
+      echo "  3) Landscape, upside down (180 degrees)"
+      echo "  4) Portrait, monitor rotated counter-clockwise (270 degrees)"
+      echo "Choose 1-4, or press Enter for landscape:"
+      read -r rotation_input
+      rotation="$(${rotationChoice}/bin/autodarts-rotation-choice "$rotation_input")"
+
+      case "$rotation" in
+        normal) target_system=${targetSystems.normal} ;;
+        90) target_system=${targetSystems."90"} ;;
+        180) target_system=${targetSystems."180"} ;;
+        270) target_system=${targetSystems."270"} ;;
+      esac
+
       disko --mode disko ${source}/nixos/disk.nix --argstr disk "$target"
 
       install -d /mnt/etc/nixos
       cp -a ${source}/. /mnt/etc/nixos/
-      nixos-install --no-root-password --system ${targetSystem}
+      sed -i \
+        "s/services.autodarts-kiosk.rotation = \"normal\";/services.autodarts-kiosk.rotation = \"$rotation\";/" \
+        /mnt/etc/nixos/nixos/configuration.nix
+      nixos-install --no-root-password --system "$target_system"
 
       if [[ -n "$ssh_keys" ]]; then
         install -d -m 0700 -o 1000 -g 100 /mnt/home/admin/.ssh
@@ -111,7 +132,7 @@ in
 
   isoImage = {
     volumeID = lib.mkForce "AUTODARTS";
-    storeContents = [ targetSystem ];
+    storeContents = builtins.attrValues targetSystems;
     squashfsCompression = "zstd -Xcompression-level 6 -processors 4";
   };
   image.fileName = lib.mkForce "autodarts-beelink-installer.iso";

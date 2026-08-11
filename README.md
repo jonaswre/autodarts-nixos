@@ -92,8 +92,9 @@ You need a Linux computer, a USB drive of at least 4 GB, and the target mini PC.
 
 6. Confirm the internal target disk and optionally enter your GitHub username.
    The installer downloads that account's published SSH keys for `admin`.
-7. Wait for installation to complete.
-8. Shut down, remove the USB drive, and boot from the internal disk.
+7. Choose the display orientation that matches the physical monitor mounting.
+8. Wait for installation to complete.
+9. Shut down, remove the USB drive, and boot from the internal disk.
 
 The installer automatically selects the disk only when exactly one
 non-removable target exists. With multiple internal disks, pass the target
@@ -104,8 +105,9 @@ kiosk is intended for normal keyboard-free operation.
 
 ## Display rotation
 
-Landscape is the safe default. For a monitor physically rotated clockwise, set
-the rotation to `90` in `nixos/configuration.nix` before building:
+The installer asks for the display orientation and persists the selection.
+Landscape is the safe default. To change it later, set the rotation in
+`nixos/configuration.nix` and rebuild:
 
 ```nix
 services.autodarts-kiosk.rotation = "90";

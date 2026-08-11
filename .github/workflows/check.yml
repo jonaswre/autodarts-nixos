@@ -19,4 +19,5 @@ jobs:
           nix build \
             .#checks.x86_64-linux.kiosk \
             .#checks.x86_64-linux.github-keys \
+            .#checks.x86_64-linux.rotation-choice \
             .#checks.x86_64-linux.source

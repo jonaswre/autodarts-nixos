@@ -20,5 +20,6 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F "enable_auth=true" ${../nixos/kiosk.nix}
     grep -F "ConditionPathExists" ${../nixos/kiosk.nix}
     grep -F "https://github.com/\$github_user.keys" ${../nixos/installer.nix}
+    grep -F "Portrait, monitor rotated clockwise" ${../nixos/installer.nix}
     touch $out
   ''

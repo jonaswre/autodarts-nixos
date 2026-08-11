@@ -5,6 +5,8 @@ All notable project changes are documented here.
 ## Unreleased
 
 - Provision all published SSH keys by GitHub username during installation.
+- Ask for the physical display orientation and install the matching prebuilt
+  system closure.
 - Show an animated local Autodarts connecting screen until internet access is
   ready instead of briefly exposing Chromium's offline error page.
 - Add opt-in encrypted WayVNC remote control with a credential setup helper and
