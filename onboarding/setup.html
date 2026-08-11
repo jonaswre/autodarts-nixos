@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Set up Autodarts</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#080b10;color:#f7fafc;font-family:Inter,system-ui,sans-serif}.wrap{width:calc(100% - 2rem);max-width:34rem;margin:auto;padding:3rem 0}.brand{font-size:2.6rem;font-weight:800;letter-spacing:-.06em}.brand span{color:#27e6a7}.card{margin-top:2rem;padding:1.5rem;border:1px solid #ffffff18;border-radius:1.5rem;background:#101720}h1{margin-top:0}p{color:#aeb9c5;line-height:1.5}label{display:block;margin:1.25rem 0 .45rem;font-weight:650}input{width:100%;padding:1rem;border:1px solid #ffffff24;border-radius:.8rem;background:#080b10;color:#fff;font:inherit}input:focus{outline:2px solid #27e6a7;border-color:transparent}button{width:100%;margin-top:1.5rem;padding:1rem;border:0;border-radius:.8rem;background:#27e6a7;color:#06110d;font:inherit;font-weight:700;cursor:pointer}button:disabled{opacity:.55}.status{min-height:1.5rem;margin-top:1rem}.error{color:#ff7588}.success{color:#27e6a7}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="brand">auto<span>darts</span></div>
+    <section class="card">
+      <h1>Pair this board</h1>
+      <p>Your details go directly to the appliance on your local network. They are not included in the QR code.</p>
+      <form id="setup-form">
+        <label for="board-id">Board ID</label>
+        <input id="board-id" name="board_id" inputmode="text" autocomplete="off" required>
+        <label for="api-key">API key</label>
+        <input id="api-key" name="api_key" type="password" autocomplete="off" required>
+        <button id="submit" type="submit">Configure board and cameras</button>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </form>
+    </section>
+  </main>
+  <script>
+    const params=new URLSearchParams(location.search),token=params.get('token')||'';history.replaceState({},'',location.pathname);const form=document.querySelector('#setup-form'),status=document.querySelector('#status'),button=document.querySelector('#submit');form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;status.className='status';status.textContent='Detecting cameras and saving configuration…';try{const response=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,board_id:form.board_id.value.trim(),api_key:form.api_key.value.trim()})}),result=await response.json();if(!response.ok)throw new Error(result.error||'Setup failed.');form.reset();status.className='status success';status.textContent=`Board paired. ${result.cameras} cameras found; calibration started. You can close this page.`}catch(error){status.className='status error';status.textContent=error.message;button.disabled=false}});
+  </script>
+</body>
+</html>

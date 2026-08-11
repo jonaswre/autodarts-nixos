@@ -24,6 +24,8 @@ pkgs.writeShellApplication {
     rotation="''${AUTODARTS_ROTATION:-normal}"
     play_url="''${AUTODARTS_PLAY_URL:-https://play.autodarts.io/}"
     probe_url="''${AUTODARTS_PROBE_URL:-$play_url}"
+    onboarding_url="''${AUTODARTS_ONBOARDING_URL:-http://127.0.0.1:3182}"
+    onboarding_enabled="''${AUTODARTS_ONBOARDING_ENABLED:-true}"
 
     for _ in $(seq 1 "$attempts"); do
       if grep -q '^connected$' "$drm_root"/card*-*/status 2>/dev/null; then
@@ -37,6 +39,27 @@ pkgs.writeShellApplication {
             fi
           done
         fi
+
+        if [[ "$onboarding_enabled" == true ]]; then
+          until curl --silent --fail --output /dev/null --max-time 1 \
+            "$onboarding_url/api/configured"; do
+            if curl --silent --fail --output /dev/null --max-time 1 \
+              "$onboarding_url/api/setup-required"; then
+              exec "$browser" \
+                --ozone-platform=wayland \
+                --enable-features=UseOzonePlatform \
+                --kiosk \
+                --no-first-run \
+                --disable-session-crashed-bubble \
+                --disable-component-update \
+                --disable-background-networking \
+                --password-store=basic \
+                --app="$onboarding_url/device"
+            fi
+            sleep 0.25
+          done
+        fi
+
         splash_profile="$XDG_RUNTIME_DIR/splash-profile"
         rm -rf "$splash_profile"
         "$browser" \

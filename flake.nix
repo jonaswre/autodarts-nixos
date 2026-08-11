@@ -58,6 +58,7 @@
         nixos = self.nixosConfigurations.beelink.config.system.build.toplevel;
         kiosk = import ./tests/kiosk.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         github-keys = import ./tests/github-keys.nix { pkgs = nixpkgs.legacyPackages.${system}; };
+        onboarding = import ./tests/onboarding.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         rotation-choice = import ./tests/rotation-choice.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         source = import ./tests/source.nix { pkgs = nixpkgs.legacyPackages.${system}; };
       };

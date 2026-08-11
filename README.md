@@ -33,6 +33,7 @@ by Autodarts.
 - Reproducible system and installer images built with Nix
 - Guarded disk installation and USB flashing workflows
 - Encrypted VNC mouse and keyboard control from Android
+- QR-based first-boot setup from a phone on the local network
 
 ```text
 USB cameras ──> Autodarts Detection ──> Autodarts services
@@ -102,6 +103,26 @@ explicitly, for example `autodarts-install /dev/sda`.
 
 The first Autodarts sign-in may require a keyboard and mouse. After setup, the
 kiosk is intended for normal keyboard-free operation.
+
+## First-boot phone setup
+
+When Board Manager has no Board ID, the appliance displays a one-time pairing
+QR instead of opening Play. Connect a phone to the same local network, scan the
+code, and enter the Board ID and API key on the phone.
+
+The onboarding service then:
+
+1. Validates and consumes the one-time pairing token.
+2. Selects three cameras deterministically by USB bus order.
+3. Configures 1280x720 at 30 FPS.
+4. Enables automatic calibration and distortion handling.
+5. Starts calibration and opens Autodarts Play on the appliance.
+
+Pairing details and the QR are served only to the appliance's loopback display.
+The phone submits credentials in the request body, not the URL, and the service
+does not log requests. Port `3182` must remain limited to the trusted local
+network; never forward it from the internet. Calibration still needs visual
+confirmation in Board Manager because camera placement is physical.
 
 ## Display rotation
 
@@ -249,6 +270,7 @@ navigation, extension origins, installer safeguards, JSON, and shell scripts.
 | --- | --- |
 | `nixos/` | Appliance, disk, kiosk, and installer modules |
 | `kiosk/extension/` | Full-screen Play and Board Manager controls |
+| `onboarding/` | One-time QR pairing and phone setup portal |
 | `scripts/flash-installer.sh` | Guarded Linux USB writer and verifier |
 | `tests/` | NixOS user-journey and source-policy checks |
 | `.github/workflows/` | Checks, installer builds, artifacts, and releases |

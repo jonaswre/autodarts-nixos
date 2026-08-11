@@ -66,6 +66,8 @@ let
   };
 in
 {
+  imports = [ ./onboarding.nix ];
+
   options.services.autodarts-kiosk = {
     enable = lib.mkEnableOption "the Autodarts Chromium kiosk" // {
       default = true;
@@ -136,6 +138,8 @@ in
         XDG_SESSION_TYPE = "wayland";
         LIBSEAT_BACKEND = "seatd";
         AUTODARTS_ROTATION = cfg.rotation;
+        AUTODARTS_ONBOARDING_URL = "http://127.0.0.1:${toString config.services.autodarts-onboarding.port}";
+        AUTODARTS_ONBOARDING_ENABLED = lib.boolToString config.services.autodarts-onboarding.enable;
       };
       serviceConfig = {
         User = "kiosk";

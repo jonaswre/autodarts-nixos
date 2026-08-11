@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pair your Autodarts board</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#12382f,#080b10 55%);color:#f7fafc;font-family:Inter,system-ui,sans-serif;text-align:center}.card{width:min(90vw,48rem);padding:clamp(2rem,5vw,4rem);border:1px solid #ffffff18;border-radius:2rem;background:#0d131bdd;box-shadow:0 2rem 7rem #0009}.brand{font-size:clamp(2.4rem,6vw,4.5rem);font-weight:800;letter-spacing:-.06em}.brand span{color:#27e6a7}h1{margin:1.5rem 0 .5rem;font-size:clamp(1.5rem,3vw,2.3rem)}p{color:#aeb9c5;font-size:clamp(1rem,2vw,1.25rem);line-height:1.5}.qr{display:block;width:min(52vw,22rem);margin:2rem auto;padding:1rem;border-radius:1.3rem;background:#fff}.pill{display:inline-flex;gap:.6rem;align-items:center;padding:.7rem 1rem;border-radius:99rem;background:#ffffff0d;color:#b9c4ce}.dot{width:.65rem;height:.65rem;border-radius:50%;background:#27e6a7;box-shadow:0 0 1rem #27e6a7;animation:pulse 1.4s infinite}@keyframes pulse{50%{opacity:.35}}.success{color:#27e6a7}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">auto<span>darts</span></div>
+    <h1 id="title">Finish setup on your phone</h1>
+    <p id="message">Scan this one-time code while connected to the same network.</p>
+    <img class="qr" id="qr" src="/qr.svg" alt="QR code for the local Autodarts setup page">
+    <div class="pill"><span class="dot"></span><span id="status">Waiting for board details…</span></div>
+  </main>
+  <script>
+    const poll=async()=>{try{const s=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());if(s.configured){document.querySelector('#qr').hidden=true;document.querySelector('#title').textContent='Board paired';document.querySelector('#title').className='success';document.querySelector('#message').textContent=s.calibration==='failed'?'Setup saved. Check calibration in Board Manager.':'Cameras found. Automatic calibration is running.';document.querySelector('#status').textContent='Opening Autodarts Play…';setTimeout(()=>location.replace('https://play.autodarts.io/'),2500);return}}catch{}setTimeout(poll,1000)};poll();
+  </script>
+</body>
+</html>

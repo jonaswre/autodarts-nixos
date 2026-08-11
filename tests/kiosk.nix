@@ -40,6 +40,7 @@ pkgs.runCommand "autodarts-kiosk-behavior" { nativeBuildInputs = [ pkgs.python3 
   DRM_SYSFS_ROOT="$PWD/connected" \
     DISPLAY_WAIT_ATTEMPTS=1 \
     AUTODARTS_ROTATION=normal \
+    AUTODARTS_ONBOARDING_ENABLED=false \
     AUTODARTS_PROBE_URL=http://127.0.0.1:18080/ \
     AUTODARTS_BROWSER="$PWD/bin/browser" \
     XDG_RUNTIME_DIR="$PWD/runtime" \

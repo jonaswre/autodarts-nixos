@@ -4,6 +4,8 @@ All notable project changes are documented here.
 
 ## Unreleased
 
+- Add one-time QR pairing for phone-based Board ID/API key entry, deterministic
+  camera selection, and automatic calibration startup.
 - Provision all published SSH keys by GitHub username during installation.
 - Ask for the physical display orientation and install the matching prebuilt
   system closure.

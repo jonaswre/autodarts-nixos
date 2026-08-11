@@ -21,5 +21,8 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F "ConditionPathExists" ${../nixos/kiosk.nix}
     grep -F "https://github.com/\$github_user.keys" ${../nixos/installer.nix}
     grep -F "Portrait, monitor rotated clockwise" ${../nixos/installer.nix}
+    grep -F "Pairing details are only shown on the appliance display" ${../onboarding/server.py}
+    grep -F 'id="board-id"' ${../onboarding/setup.html}
+    grep -F 'id="api-key"' ${../onboarding/setup.html}
     touch $out
   ''
