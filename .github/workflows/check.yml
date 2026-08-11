@@ -14,4 +14,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
       - run: nix flake check --no-build
-      - run: nix build .#checks.x86_64-linux.kiosk
+      - name: Run user-journey and source checks
+        run: |
+          nix build \
+            .#checks.x86_64-linux.kiosk \
+            .#checks.x86_64-linux.github-keys \
+            .#checks.x86_64-linux.source

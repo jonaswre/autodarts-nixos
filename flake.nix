@@ -48,6 +48,7 @@
       checks.${system} = {
         nixos = self.nixosConfigurations.beelink.config.system.build.toplevel;
         kiosk = import ./tests/kiosk.nix { pkgs = nixpkgs.legacyPackages.${system}; };
+        github-keys = import ./tests/github-keys.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         source = import ./tests/source.nix { pkgs = nixpkgs.legacyPackages.${system}; };
       };
       formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt;

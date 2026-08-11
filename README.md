@@ -90,9 +90,10 @@ You need a Linux computer, a USB drive of at least 4 GB, and the target mini PC.
    autodarts-install
    ```
 
-6. Confirm the internal target disk, optionally paste an SSH public key, and
-   wait for installation to complete.
-7. Shut down, remove the USB drive, and boot from the internal disk.
+6. Confirm the internal target disk and optionally enter your GitHub username.
+   The installer downloads that account's published SSH keys for `admin`.
+7. Wait for installation to complete.
+8. Shut down, remove the USB drive, and boot from the internal disk.
 
 The installer automatically selects the disk only when exactly one
 non-removable target exists. With multiple internal disks, pass the target
@@ -158,8 +159,9 @@ Replace the example device with the internal disk reported by `lsblk`.
 ## Administration
 
 The physical console automatically logs in as `admin` for local recovery.
-Remote access is key-only and is enabled when a public key is supplied during
-installation; root SSH login and password SSH login are disabled.
+Remote access is key-only and is enabled when a GitHub username with published
+SSH keys is supplied during installation; root SSH login and password SSH login
+are disabled.
 
 ```console
 ssh admin@autodarts

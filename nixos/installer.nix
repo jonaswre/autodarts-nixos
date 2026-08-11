@@ -9,6 +9,7 @@
   ...
 }:
 let
+  githubKeys = import ./github-keys.nix { inherit pkgs; };
   source = builtins.path {
     path = ../.;
     name = "autodarts-nixos-source";
@@ -76,11 +77,13 @@ let
       }
 
       echo
-      echo "Optional: paste one SSH public key for the admin user, or press Enter to skip."
-      read -r ssh_key
-      if [[ -n "$ssh_key" && ! "$ssh_key" =~ ^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521))[[:space:]] ]]; then
-        echo "Refusing invalid SSH public key." >&2
-        exit 1
+      echo "Optional: enter a GitHub username to install its public SSH keys."
+      echo "Press Enter to skip remote administration."
+      read -r github_user
+      ssh_keys=""
+      if [[ -n "$github_user" ]]; then
+        echo "Downloading public keys from https://github.com/$github_user.keys"
+        ssh_keys="$(${githubKeys}/bin/autodarts-github-keys "$github_user")"
       fi
 
       disko --mode disko ${source}/nixos/disk.nix --argstr disk "$target"
@@ -89,9 +92,9 @@ let
       cp -a ${source}/. /mnt/etc/nixos/
       nixos-install --no-root-password --system ${targetSystem}
 
-      if [[ -n "$ssh_key" ]]; then
+      if [[ -n "$ssh_keys" ]]; then
         install -d -m 0700 -o 1000 -g 100 /mnt/home/admin/.ssh
-        printf '%s\n' "$ssh_key" > /mnt/home/admin/.ssh/authorized_keys
+        printf '%s\n' "$ssh_keys" > /mnt/home/admin/.ssh/authorized_keys
         chown 1000:100 /mnt/home/admin/.ssh/authorized_keys
         chmod 0600 /mnt/home/admin/.ssh/authorized_keys
       fi

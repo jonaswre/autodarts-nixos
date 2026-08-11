@@ -19,5 +19,6 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F "Connecting to Autodarts" ${../kiosk/loading.html}
     grep -F "enable_auth=true" ${../nixos/kiosk.nix}
     grep -F "ConditionPathExists" ${../nixos/kiosk.nix}
+    grep -F "https://github.com/\$github_user.keys" ${../nixos/installer.nix}
     touch $out
   ''
