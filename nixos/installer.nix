@@ -1,14 +1,23 @@
-{ config, lib, pkgs, modulesPath, self, disko, targetSystem, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  modulesPath,
+  self,
+  disko,
+  targetSystem,
+  ...
+}:
 let
   source = builtins.path {
     path = ../.;
     name = "autodarts-nixos-source";
-    filter = path: type:
-      let base = baseNameOf path;
+    filter =
+      path: type:
+      let
+        base = baseNameOf path;
       in
-      base != ".git"
-      && !(lib.hasPrefix "result" base)
-      && !(lib.hasSuffix ".iso" base);
+      base != ".git" && !(lib.hasPrefix "result" base) && !(lib.hasSuffix ".iso" base);
   };
 
   installer = pkgs.writeShellApplication {
@@ -105,7 +114,11 @@ in
   image.fileName = lib.mkForce "autodarts-beelink-installer.iso";
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
-  boot.supportedFilesystems = lib.mkForce [ "vfat" "ext4" "iso9660" ];
+  boot.supportedFilesystems = lib.mkForce [
+    "vfat"
+    "ext4"
+    "iso9660"
+  ];
   hardware.enableRedistributableFirmware = true;
   networking.networkmanager.enable = true;
   services.openssh.enable = true;

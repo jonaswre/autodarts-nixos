@@ -2,6 +2,13 @@
 
 All notable project changes are documented here.
 
+## Unreleased
+
+- Show an animated local Autodarts connecting screen until internet access is
+  ready instead of briefly exposing Chromium's offline error page.
+- Add opt-in encrypted WayVNC remote control with a credential setup helper and
+  documented AVNC support for Android mouse and keyboard input.
+
 ## 0.1.0 - 2026-08-09
 
 - Add a self-contained, guarded NixOS installer ISO for x86-64 systems.

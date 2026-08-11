@@ -23,6 +23,7 @@ by Autodarts.
 ## What you get
 
 - Full-screen Chromium kiosk without tabs or an address bar
+- Animated local connecting screen instead of Chromium's offline error page
 - Autodarts Play and the local Board Manager on the same display
 - Top-level Google sign-in instead of an embedded login flow
 - Persistent browser profile and login between reboots
@@ -31,6 +32,7 @@ by Autodarts.
 - Fast boot using systemd-boot, Cage, Wayland, and Intel fastboot
 - Reproducible system and installer images built with Nix
 - Guarded disk installation and USB flashing workflows
+- Encrypted VNC mouse and keyboard control from Android
 
 ```text
 USB cameras ──> Autodarts Detection ──> Autodarts services
@@ -179,6 +181,35 @@ Persistent data is stored in:
 - `/var/lib/autodarts-kiosk`
 
 Back up both directories before reinstalling.
+
+## Remote control from Android
+
+VNC support is installed but accepts no connections until credentials are
+created locally or over SSH:
+
+```console
+sudo autodarts-vnc-setup
+```
+
+Choose a password of at least eight characters. The command creates a private
+self-signed TLS identity, stores the credentials under a dedicated service
+account, prints the certificate's SHA-256 fingerprint, and starts WayVNC on TCP
+port `5900`.
+
+On Android, install [AVNC](https://f-droid.org/packages/com.gaurav.avnc/), then
+create a connection with:
+
+- Host: the appliance IP, for example `192.168.50.28`
+- Port: `5900`
+- Username: `autodarts`
+- Password: the value entered during setup
+- Security: TLS/VeNCrypt; compare the certificate fingerprint with the value
+  printed by `autodarts-vnc-setup` before accepting it
+
+AVNC provides touch pointer gestures and Android keyboard input. VNC is exposed
+to the local network, so use a strong unique password and do not forward port
+`5900` from the internet. Running `sudo autodarts-vnc-setup` again rotates the
+credentials and certificate.
 
 ## Updating
 

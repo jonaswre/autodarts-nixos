@@ -9,20 +9,28 @@
     };
   };
 
-  outputs = { self, nixpkgs, disko }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      disko,
+    }:
     let
       system = "x86_64-linux";
-      mkSystem = disk: nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = { inherit disk; };
-        modules = [
-          disko.nixosModules.disko
-          ./nixos/disk.nix
-          ./nixos/configuration.nix
-        ];
-      };
+      mkSystem =
+        disk:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit disk; };
+          modules = [
+            disko.nixosModules.disko
+            ./nixos/disk.nix
+            ./nixos/configuration.nix
+          ];
+        };
       beelinkSystem = mkSystem "/dev/nvme0n1";
-    in {
+    in
+    {
       nixosModules.default = ./nixos/kiosk.nix;
       nixosConfigurations.beelink = beelinkSystem;
       nixosConfigurations.installer = nixpkgs.lib.nixosSystem {
@@ -42,6 +50,6 @@
         kiosk = import ./tests/kiosk.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         source = import ./tests/source.nix { pkgs = nixpkgs.legacyPackages.${system}; };
       };
-      formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt-rfc-style;
+      formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt;
     };
 }

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Autodarts is starting</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: #080b10;
+        color: #f6f8fb;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 50% 42%, rgba(39, 230, 167, 0.14), transparent 31rem),
+          radial-gradient(circle at 15% 10%, rgba(56, 132, 255, 0.09), transparent 28rem),
+          linear-gradient(145deg, #0c1119, #05070a 72%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        opacity: 0.25;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(circle, black, transparent 72%);
+      }
+
+      main {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        justify-items: center;
+        gap: clamp(1.3rem, 3vh, 2.5rem);
+        padding: 3rem;
+        text-align: center;
+      }
+
+      .board {
+        width: clamp(12rem, 31vh, 20rem);
+        aspect-ratio: 1;
+        padding: 4.5%;
+        border-radius: 50%;
+        background: #111820;
+        box-shadow:
+          0 0 0 1px rgba(255,255,255,0.08),
+          0 2rem 6rem rgba(0,0,0,0.55),
+          0 0 5rem rgba(39,230,167,0.12);
+      }
+
+      .rings {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle, #ef4056 0 4.5%, #27e6a7 4.7% 9%, transparent 9.2%),
+          repeating-conic-gradient(from -9deg, #e9edf2 0 9deg, #151b22 9deg 18deg);
+        animation: breathe 2.8s ease-in-out infinite;
+      }
+
+      .rings::before {
+        content: "";
+        width: 70%;
+        height: 70%;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle, transparent 0 61%, #27e6a7 61.5% 68%, #ef4056 68.5% 76%, transparent 76.5%),
+          repeating-conic-gradient(from -9deg, #151b22 0 9deg, #e9edf2 9deg 18deg);
+        box-shadow: inset 0 0 0 2px rgba(0,0,0,0.75);
+      }
+
+      .brand {
+        font-size: clamp(2rem, 5vw, 4.2rem);
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+      }
+
+      .brand span { color: #27e6a7; }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        color: #aab4c0;
+        font-size: clamp(0.95rem, 1.7vw, 1.25rem);
+        letter-spacing: 0.03em;
+      }
+
+      .dot {
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 50%;
+        background: #27e6a7;
+        box-shadow: 0 0 1.2rem #27e6a7;
+        animation: blink 1.4s ease-in-out infinite;
+      }
+
+      @keyframes breathe {
+        0%, 100% { transform: scale(0.985); filter: brightness(0.9); }
+        50% { transform: scale(1); filter: brightness(1.08); }
+      }
+
+      @keyframes blink {
+        0%, 100% { opacity: 0.3; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .rings, .dot { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main aria-live="polite">
+      <div class="board" aria-hidden="true"><div class="rings"></div></div>
+      <div class="brand">auto<span>darts</span></div>
+      <div class="status"><span class="dot"></span>Connecting to Autodarts…</div>
+    </main>
+  </body>
+</html>

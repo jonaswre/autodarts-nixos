@@ -1,7 +1,10 @@
 { pkgs }:
 pkgs.runCommand "autodarts-source-checks"
   {
-    nativeBuildInputs = [ pkgs.jq pkgs.shellcheck ];
+    nativeBuildInputs = [
+      pkgs.jq
+      pkgs.shellcheck
+    ];
   }
   ''
     shellcheck ${../install.sh} ${../scripts/flash-installer.sh}
@@ -13,5 +16,8 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F "location.href = onBoardManager" ${../kiosk/extension/controls.js}
     grep -F "https://play.autodarts.io/" ${../kiosk/extension/controls.js}
     grep -F "http://127.0.0.1:3180/" ${../kiosk/extension/controls.js}
+    grep -F "Connecting to Autodarts" ${../kiosk/loading.html}
+    grep -F "enable_auth=true" ${../nixos/kiosk.nix}
+    grep -F "ConditionPathExists" ${../nixos/kiosk.nix}
     touch $out
   ''
