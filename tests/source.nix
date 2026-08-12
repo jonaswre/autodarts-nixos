@@ -30,7 +30,7 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F '"$randr" --output "$connector" --scale "$scale"' ${../nixos/kiosk-launcher.nix}
     grep -F 'The installed system keeps the rotation selected by the installer' ${../flake.nix}
     grep -F "autodarts-novnc" ${../nixos/kiosk.nix}
-    grep -F -- "--ssl-only" ${../nixos/kiosk.nix}
+    grep -F -- "--cert" ${../nixos/kiosk.nix}
     grep -F 'nixos-enter --root /mnt -c "autodarts-vnc-setup"' ${../nixos/installer.nix}
     grep -F "ConditionPathExists" ${../nixos/kiosk.nix}
     grep -F "https://github.com/\$github_user.keys" ${../nixos/installer.nix}

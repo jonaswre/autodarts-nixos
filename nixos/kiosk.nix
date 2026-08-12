@@ -7,6 +7,13 @@
 let
   browser = import ./kiosk-launcher.nix { inherit pkgs; };
   cfg = config.services.autodarts-kiosk;
+  novncBridge = pkgs.buildGoModule {
+    pname = "autodarts-novnc";
+    version = "0.1.0";
+    src = ../.;
+    subPackages = [ "cmd/autodarts-novnc" ];
+    vendorHash = "sha256-YuKp0vTjWchj4TuvPg9sR2BUKWIJVgqiwWn1vANHVqc=";
+  };
   vncStateDir = "/var/lib/autodarts-vnc";
   vncSetup = pkgs.writeShellApplication {
     name = "autodarts-vnc-setup";
@@ -200,7 +207,7 @@ in
       serviceConfig = {
         User = "kiosk";
         Group = "kiosk";
-        ExecStart = "${pkgs.python3Packages.websockify}/bin/websockify --ssl-only --cert=${vncStateDir}/tls-cert.pem --key=${vncStateDir}/tls-key.pem --web=${pkgs.novnc}/share/webapps/novnc 0.0.0.0:${toString cfg.vnc.webPort} 127.0.0.1:${toString cfg.vnc.port}";
+        ExecStart = "${novncBridge}/bin/autodarts-novnc --listen 0.0.0.0:${toString cfg.vnc.webPort} --target 127.0.0.1:${toString cfg.vnc.port} --web ${pkgs.novnc}/share/webapps/novnc --cert ${vncStateDir}/tls-cert.pem --key ${vncStateDir}/tls-key.pem";
         Restart = "on-failure";
         RestartSec = "2s";
       };

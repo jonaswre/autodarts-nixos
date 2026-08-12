@@ -2,29 +2,9 @@
 let
   githubKeys = import ../nixos/github-keys.nix { inherit pkgs; };
 in
-pkgs.runCommand "autodarts-github-key-lookup" { nativeBuildInputs = [ pkgs.python3 ]; } ''
-  ${pkgs.python3}/bin/python - <<'PY' &
-  from http.server import BaseHTTPRequestHandler, HTTPServer
-
-  class GitHubKeys(BaseHTTPRequestHandler):
-      def do_GET(self):
-          assert self.path == "/dart-player.keys"
-          body = (
-              "ssh-ed25519 AAAAC3Nza-test first-device\n"
-              "ssh-rsa AAAAB3Nza-test fallback-device\n"
-          ).encode()
-          self.send_response(200)
-          self.send_header("Content-Length", str(len(body)))
-          self.end_headers()
-          self.wfile.write(body)
-
-      def log_message(self, *_args):
-          pass
-
-  server = HTTPServer(("127.0.0.1", 18081), GitHubKeys)
-  server.timeout = 10
-  server.handle_request()
-  PY
+pkgs.runCommand "autodarts-github-key-lookup" { nativeBuildInputs = [ pkgs.netcat-openbsd ]; } ''
+  body=$'ssh-ed25519 AAAAC3Nza-test first-device\nssh-rsa AAAAB3Nza-test fallback-device\n'
+  (printf 'HTTP/1.1 200 OK\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' "''${#body}" "$body" | nc -l 127.0.0.1 18081) &
 
   server_pid=$!
   GITHUB_KEYS_BASE_URL=http://127.0.0.1:18081 \

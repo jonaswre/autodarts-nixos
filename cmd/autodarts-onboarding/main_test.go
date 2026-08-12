@@ -2,17 +2,75 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func testService(t *testing.T) *service {
 	t.Helper()
 	return &service{stateDir: t.TempDir(), assetDir: "../../onboarding", calibration: "idle", client: http.DefaultClient}
+}
+
+func TestUserCompletesPhoneSetupAndStartsCalibration(t *testing.T) {
+	var patched map[string]any
+	var calibrated atomic.Bool
+	manager := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/api/config":
+			json.NewEncoder(w).Encode(map[string]any{"auth": map[string]any{"board_id": ""}})
+		case r.Method == "GET" && r.URL.Path == "/api/devices":
+			json.NewEncoder(w).Encode([]any{map[string]any{"bus": "usb-3", "formats": []any{map[string]any{"path": "/dev/video4"}}}, map[string]any{"bus": "usb-1", "formats": []any{map[string]any{"path": "/dev/video0"}}}, map[string]any{"bus": "usb-2", "formats": []any{map[string]any{"path": "/dev/video2"}}}})
+		case r.Method == "PATCH" && r.URL.Path == "/api/config":
+			json.NewDecoder(r.Body).Decode(&patched)
+			json.NewEncoder(w).Encode(patched)
+		case r.Method == "POST" && r.URL.Path == "/api/config/calibration/auto":
+			calibrated.Store(true)
+			w.WriteHeader(204)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer manager.Close()
+	s := testService(t)
+	s.boardURL = manager.URL + "/api"
+	s.advertised = "192.0.2.10"
+	s.port = 3182
+	token, err := s.token()
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := fmt.Sprintf(`{"token":%q,"board_id":"4dff4c92-3451-450e-9cc4-d163090a156a","api_key":"test-api-key-1234567890"}`, token)
+	request := httptest.NewRequest(http.MethodPost, "http://appliance/api/setup", strings.NewReader(body))
+	request.RemoteAddr = "192.0.2.44:1234"
+	response := httptest.NewRecorder()
+	s.ServeHTTP(response, request)
+	if response.Code != 200 {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	cam := patched["cam"].(map[string]any)
+	got := cam["cams"].([]any)
+	if fmt.Sprint(got) != "[/dev/video0 /dev/video2 /dev/video4]" {
+		t.Fatalf("cameras=%v", got)
+	}
+	deadline := time.Now().Add(time.Second)
+	for !calibrated.Load() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if !calibrated.Load() {
+		t.Fatal("calibration was not started")
+	}
+	second := httptest.NewRecorder()
+	s.ServeHTTP(second, httptest.NewRequest(http.MethodPost, "http://appliance/api/setup", strings.NewReader(body)))
+	if second.Code != 403 {
+		t.Fatalf("consumed token status=%d", second.Code)
+	}
 }
 
 func TestPlaySanitizerPreservesDartButRemovesIdentity(t *testing.T) {

@@ -1,12 +1,9 @@
 { pkgs }:
-pkgs.runCommand "autodarts-remote-control-behavior"
-  {
-    nativeBuildInputs = [ pkgs.python3 ];
-  }
-  ''
-    python ${./remote-control.py} \
-      ${pkgs.python3Packages.websockify}/bin/websockify \
-      ${pkgs.novnc}/share/webapps/novnc \
-      ${pkgs.openssl}/bin/openssl
-    touch $out
-  ''
+pkgs.buildGoModule {
+  pname = "autodarts-remote-control-behavior";
+  version = "0.1.0";
+  src = ../.;
+  subPackages = [ "cmd/autodarts-novnc" ];
+  vendorHash = "sha256-YuKp0vTjWchj4TuvPg9sR2BUKWIJVgqiwWn1vANHVqc=";
+  doCheck = true;
+}

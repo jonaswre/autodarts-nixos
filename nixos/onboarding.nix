@@ -11,7 +11,7 @@ let
     version = "0.1.0";
     src = ../.;
     subPackages = [ "cmd/autodarts-onboarding" ];
-    vendorHash = "sha256-imsXbwHohEy9hQqnpPa2NBIK9YGk2lY09cM4hDWFFcI=";
+    vendorHash = "sha256-YuKp0vTjWchj4TuvPg9sR2BUKWIJVgqiwWn1vANHVqc=";
     postInstall = ''
       mkdir -p $out/share/autodarts-onboarding
     install -Dm644 ${../onboarding/device.html} $out/share/autodarts-onboarding/device.html

@@ -2,7 +2,7 @@
 let
   launcher = import ../nixos/kiosk-launcher.nix { inherit pkgs; };
 in
-pkgs.runCommand "autodarts-kiosk-behavior" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+pkgs.runCommand "autodarts-kiosk-behavior" { nativeBuildInputs = [ pkgs.netcat-openbsd ]; } ''
   mkdir -p "$out" connected/card0-HDMI-A-1 disconnected/card0-HDMI-A-1 bin runtime
   echo connected > connected/card0-HDMI-A-1/status
   echo 3840x2160 > connected/card0-HDMI-A-1/modes
@@ -27,21 +27,7 @@ pkgs.runCommand "autodarts-kiosk-behavior" { nativeBuildInputs = [ pkgs.python3 
 
   (
     sleep 1
-    ${pkgs.python3}/bin/python - <<'PY'
-  from http.server import BaseHTTPRequestHandler, HTTPServer
-
-  class Ready(BaseHTTPRequestHandler):
-      def do_GET(self):
-          self.send_response(204)
-          self.end_headers()
-
-      def log_message(self, *_args):
-          pass
-
-  server = HTTPServer(("127.0.0.1", 18080), Ready)
-  server.timeout = 10
-  server.handle_request()
-  PY
+    printf 'HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n' | nc -l 127.0.0.1 18080
   ) &
 
   DRM_SYSFS_ROOT="$PWD/connected" \
