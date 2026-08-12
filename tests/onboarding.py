@@ -120,6 +120,9 @@ with tempfile.TemporaryDirectory() as state_dir:
         _, headers, qr = request("/qr.svg")
         assert headers.get_content_type() == "image/svg+xml"
         assert b"<svg" in qr
+        _, remote_headers, remote_qr = request("/remote-control-qr.svg")
+        assert remote_headers.get_content_type() == "image/svg+xml"
+        assert b"<svg" in remote_qr
 
         _, _, pairing = request("/api/pairing")
         setup_url = json.loads(pairing)["url"]

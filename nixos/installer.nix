@@ -113,6 +113,8 @@ let
         /mnt/etc/nixos/nixos/configuration.nix
       nixos-install --no-root-password --system "$target_system"
 
+      nixos-enter --root /mnt -c "autodarts-vnc-setup"
+
       if [[ -n "$ssh_keys" ]]; then
         install -d -m 0700 -o 1000 -g 100 /mnt/home/admin/.ssh
         printf '%s\n' "$ssh_keys" > /mnt/home/admin/.ssh/authorized_keys
@@ -122,6 +124,7 @@ let
 
       echo
       echo "Installation complete. Remove the USB drive, then run: reboot"
+      echo "After boot, open https://autodarts:6080/vnc.html"
     '';
   };
 in

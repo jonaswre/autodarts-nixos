@@ -3,6 +3,10 @@
   "name": "Autodarts Kiosk Controls",
   "version": "1.0.0",
   "description": "Switches between Autodarts Play and the local Board Manager.",
+  "host_permissions": ["http://127.0.0.1:3182/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [

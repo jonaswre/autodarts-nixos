@@ -74,6 +74,10 @@ def local_address():
         probe.close()
 
 
+def remote_control_url():
+    return f"https://{local_address()}:6080/vnc.html?autoconnect=true&show_dot=true&resize=scale"
+
+
 def camera_paths():
     devices = sorted(board_request("/devices"), key=lambda device: device.get("bus", ""))
     paths = []
@@ -154,6 +158,15 @@ class Handler(BaseHTTPRequestHandler):
             if not self.require_local_display():
                 return
             image = qrcode.make(self.setup_url(), image_factory=qrcode.image.svg.SvgPathImage)
+            from io import BytesIO
+
+            output = BytesIO()
+            image.save(output)
+            self.send_bytes(200, "image/svg+xml", output.getvalue())
+        elif path == "/remote-control-qr.svg":
+            if not self.require_local_display():
+                return
+            image = qrcode.make(remote_control_url(), image_factory=qrcode.image.svg.SvgPathImage)
             from io import BytesIO
 
             output = BytesIO()

@@ -1,8 +1,10 @@
 { pkgs }:
 let
+  displayScale = import ./display-scale.nix { inherit pkgs; };
   controls = pkgs.runCommand "autodarts-kiosk-controls" { } ''
     install -Dm644 ${../kiosk/extension/manifest.json} $out/manifest.json
     install -Dm644 ${../kiosk/extension/controls.js} $out/controls.js
+    install -Dm644 ${../kiosk/extension/background.js} $out/background.js
   '';
   loadingPage = pkgs.runCommand "autodarts-kiosk-loading" { } ''
     install -Dm644 ${../kiosk/loading.html} $out/loading.html
@@ -21,6 +23,7 @@ pkgs.writeShellApplication {
     drm_root="''${DRM_SYSFS_ROOT:-/sys/class/drm}"
     attempts="''${DISPLAY_WAIT_ATTEMPTS:-40}"
     browser="''${AUTODARTS_BROWSER:-chromium}"
+    randr="''${AUTODARTS_WLR_RANDR:-wlr-randr}"
     rotation="''${AUTODARTS_ROTATION:-normal}"
     play_url="''${AUTODARTS_PLAY_URL:-https://play.autodarts.io/}"
     probe_url="''${AUTODARTS_PROBE_URL:-$play_url}"
@@ -29,16 +32,19 @@ pkgs.writeShellApplication {
 
     for _ in $(seq 1 "$attempts"); do
       if grep -q '^connected$' "$drm_root"/card*-*/status 2>/dev/null; then
-        if [[ "$rotation" != normal ]]; then
-          for status_file in "$drm_root"/card*-*/status; do
-            if [[ "$(cat "$status_file")" == connected ]]; then
-              connector="$(basename "$(dirname "$status_file")")"
-              connector="''${connector#card*-}"
-              wlr-randr --output "$connector" --transform "$rotation"
-              break
+        for status_file in "$drm_root"/card*-*/status; do
+          if [[ "$(cat "$status_file")" == connected ]]; then
+            connector="$(basename "$(dirname "$status_file")")"
+            connector="''${connector#card*-}"
+            mode="$(head -n 1 "$(dirname "$status_file")/modes" 2>/dev/null || true)"
+            scale="$(${displayScale}/bin/autodarts-display-scale "$mode")"
+            "$randr" --output "$connector" --scale "$scale"
+            if [[ "$rotation" != normal ]]; then
+              "$randr" --output "$connector" --transform "$rotation"
             fi
-          done
-        fi
+            break
+          fi
+        done
 
         if [[ "$onboarding_enabled" == true ]]; then
           until curl --silent --fail --output /dev/null --max-time 1 \

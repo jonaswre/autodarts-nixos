@@ -21,19 +21,7 @@ let
               exit 1
             fi
 
-            username="''${1:-autodarts}"
-            read -r -s -p "VNC password (minimum 8 characters): " password
-            echo
-            read -r -s -p "Repeat VNC password: " confirmation
-            echo
-            [[ "$password" == "$confirmation" ]] || { echo "Passwords do not match." >&2; exit 1; }
-            [[ ''${#password} -ge 8 ]] || { echo "Password is too short." >&2; exit 1; }
-            [[ "$password" != *$'\n'* && "$password" != *$'\r'* ]] || {
-              echo "Password contains an invalid newline." >&2
-              exit 1
-            }
-
-            install -d -m 0700 -o autodarts-vnc -g autodarts-vnc ${vncStateDir}
+            install -d -m 0710 -o autodarts-vnc -g kiosk ${vncStateDir}
             temp_dir=$(mktemp -d ${vncStateDir}/setup.XXXXXX)
             trap 'rm -rf "$temp_dir"' EXIT
 
@@ -43,24 +31,23 @@ let
               -out "$temp_dir/tls-cert.pem" >/dev/null 2>&1
 
             cat > "$temp_dir/config" <<EOF
-      address=0.0.0.0
+      address=127.0.0.1
       port=${toString cfg.vnc.port}
-      enable_auth=true
-      username=$username
-      password=$password
-      private_key_file=${vncStateDir}/tls-key.pem
-      certificate_file=${vncStateDir}/tls-cert.pem
+      enable_auth=false
       EOF
 
-            chown -R autodarts-vnc:autodarts-vnc "$temp_dir"
-            chmod 0600 "$temp_dir/config" "$temp_dir/tls-key.pem"
+            chown -R autodarts-vnc:kiosk "$temp_dir"
+            chmod 0640 "$temp_dir/config" "$temp_dir/tls-key.pem"
             chmod 0644 "$temp_dir/tls-cert.pem"
             mv -f "$temp_dir/config" "$temp_dir/tls-key.pem" "$temp_dir/tls-cert.pem" ${vncStateDir}/
+            rm -f ${vncStateDir}/web-credentials
             rmdir "$temp_dir"
             trap - EXIT
 
-            systemctl restart autodarts-wayvnc.service
-            echo "Encrypted VNC is ready on port ${toString cfg.vnc.port} for user: $username"
+            if systemctl is-active --quiet autodarts-kiosk.service; then
+              systemctl restart autodarts-wayvnc.service autodarts-novnc.service
+            fi
+            echo "Browser remote control is ready at https://autodarts:${toString cfg.vnc.webPort}/vnc.html"
             openssl x509 -in ${vncStateDir}/tls-cert.pem -noout -fingerprint -sha256
     '';
   };
@@ -90,6 +77,11 @@ in
         type = lib.types.port;
         default = 5900;
         description = "TCP port for encrypted VNC remote control.";
+      };
+      webPort = lib.mkOption {
+        type = lib.types.port;
+        default = 6080;
+        description = "HTTPS port for browser-based noVNC remote control.";
       };
     };
   };
@@ -126,7 +118,7 @@ in
     };
 
     environment.systemPackages = lib.mkIf cfg.vnc.enable [ vncSetup ];
-    networking.firewall.allowedTCPPorts = lib.mkIf cfg.vnc.enable [ cfg.vnc.port ];
+    networking.firewall.allowedTCPPorts = lib.mkIf cfg.vnc.enable [ cfg.vnc.webPort ];
 
     systemd.services.autodarts-kiosk = {
       description = "Autodarts WebClient kiosk when a display is connected";
@@ -173,8 +165,8 @@ in
         WAYLAND_DISPLAY = "wayland-0";
       };
       serviceConfig = {
-        User = "autodarts-vnc";
-        Group = "autodarts-vnc";
+        User = "kiosk";
+        Group = "kiosk";
         SupplementaryGroups = [
           "kiosk"
           "video"
@@ -182,7 +174,33 @@ in
         ];
         StateDirectory = "autodarts-vnc";
         StateDirectoryMode = "0700";
+        ExecStartPre = pkgs.writeShellScript "wait-for-autodarts-wayland" ''
+          for _ in {1..40}; do
+            [[ -S /run/autodarts-kiosk/wayland-0 ]] && exit 0
+            ${pkgs.coreutils}/bin/sleep 0.25
+          done
+          echo "Timed out waiting for the kiosk Wayland socket" >&2
+          exit 1
+        '';
         ExecStart = "${pkgs.wayvnc}/bin/wayvnc --config ${vncStateDir}/config";
+        # A monitor hotplug makes WayVNC exit successfully when its selected
+        # wlroots output disappears. Restart so it follows the replacement
+        # connector after TVs/monitors finish their cold-boot HDMI handshake.
+        Restart = "always";
+        RestartSec = "2s";
+      };
+    };
+
+    systemd.services.autodarts-novnc = lib.mkIf cfg.vnc.enable {
+      description = "HTTPS browser remote control for the Autodarts kiosk";
+      wantedBy = [ "multi-user.target" ];
+      requires = [ "autodarts-wayvnc.service" ];
+      after = [ "autodarts-wayvnc.service" ];
+      unitConfig.ConditionPathExists = "${vncStateDir}/config";
+      serviceConfig = {
+        User = "kiosk";
+        Group = "kiosk";
+        ExecStart = "${pkgs.python3Packages.websockify}/bin/websockify --ssl-only --cert=${vncStateDir}/tls-cert.pem --key=${vncStateDir}/tls-key.pem --web=${pkgs.novnc}/share/webapps/novnc 0.0.0.0:${toString cfg.vnc.webPort} 127.0.0.1:${toString cfg.vnc.port}";
         Restart = "on-failure";
         RestartSec = "2s";
       };

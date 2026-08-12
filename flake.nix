@@ -35,7 +35,17 @@
         "180" = mkSystem "/dev/nvme0n1" "180";
         "270" = mkSystem "/dev/nvme0n1" "270";
       };
-      beelinkSystem = targetSystems.normal;
+      # The installed system keeps the rotation selected by the installer in
+      # configuration.nix. Only the pre-built installer targets force a value.
+      beelinkSystem = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs.disk = "/dev/nvme0n1";
+        modules = [
+          disko.nixosModules.disko
+          ./nixos/disk.nix
+          ./nixos/configuration.nix
+        ];
+      };
     in
     {
       nixosModules.default = ./nixos/kiosk.nix;
@@ -59,7 +69,11 @@
         kiosk = import ./tests/kiosk.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         github-keys = import ./tests/github-keys.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         onboarding = import ./tests/onboarding.nix { pkgs = nixpkgs.legacyPackages.${system}; };
+        remote-control = import ./tests/remote-control.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+        };
         rotation-choice = import ./tests/rotation-choice.nix { pkgs = nixpkgs.legacyPackages.${system}; };
+        display-scale = import ./tests/display-scale.nix { pkgs = nixpkgs.legacyPackages.${system}; };
         source = import ./tests/source.nix { pkgs = nixpkgs.legacyPackages.${system}; };
       };
       formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt;

@@ -29,10 +29,11 @@ by Autodarts.
 - Persistent browser profile and login between reboots
 - Headless Autodarts Detection and remote Board Manager access
 - Display rotation for landscape and portrait installations
+- Automatic UI scaling for Full HD, QHD/2K, and 4K displays
 - Fast boot using systemd-boot, Cage, Wayland, and Intel fastboot
 - Reproducible system and installer images built with Nix
 - Guarded disk installation and USB flashing workflows
-- Encrypted VNC mouse and keyboard control from Android
+- Browser remote control over HTTPS for trusted local networks
 - QR-based first-boot setup from a phone on the local network
 
 ```text
@@ -207,34 +208,35 @@ Persistent data is stored in:
 
 Back up both directories before reinstalling.
 
-## Remote control from Android
+## Browser remote control
 
-VNC support is installed but accepts no connections until credentials are
-created locally or over SSH:
+After boot, open:
+
+```text
+https://autodarts:6080/vnc.html
+```
+
+Accept the appliance's self-signed certificate. The noVNC page works in current
+Chrome, Edge, Firefox, and mobile browsers. TCP 6080 is available only on the
+local network. Do not forward it from the internet.
+
+WayVNC remains the display/input backend on TCP 5900, but it listens only on
+the appliance loopback interface and is not directly reachable from the LAN.
+The page intentionally has no login because it is designed for a trusted local
+network. Anyone on that network can control the kiosk, so do not forward TCP
+6080 from the internet or use the appliance on an untrusted LAN.
+
+## Rotating the remote-control certificate
+
+To rotate the remote-control credentials after installation, run:
 
 ```console
 sudo autodarts-vnc-setup
 ```
 
-Choose a password of at least eight characters. The command creates a private
-self-signed TLS identity, stores the credentials under a dedicated service
-account, prints the certificate's SHA-256 fingerprint, and starts WayVNC on TCP
-port `5900`.
-
-On Android, install [AVNC](https://f-droid.org/packages/com.gaurav.avnc/), then
-create a connection with:
-
-- Host: the appliance IP, for example `192.168.50.28`
-- Port: `5900`
-- Username: `autodarts`
-- Password: the value entered during setup
-- Security: TLS/VeNCrypt; compare the certificate fingerprint with the value
-  printed by `autodarts-vnc-setup` before accepting it
-
-AVNC provides touch pointer gestures and Android keyboard input. VNC is exposed
-to the local network, so use a strong unique password and do not forward port
-`5900` from the internet. Running `sudo autodarts-vnc-setup` again rotates the
-credentials and certificate.
+The command creates a new private self-signed TLS identity, prints its SHA-256
+fingerprint, and restarts the browser remote-control services. Refresh the
+noVNC page afterward.
 
 ## Updating
 
