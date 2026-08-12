@@ -124,6 +124,67 @@ with tempfile.TemporaryDirectory() as state_dir:
         assert remote_headers.get_content_type() == "image/svg+xml"
         assert b"<svg" in remote_qr
 
+        _, _, play_status = request("/api/play-capture/status")
+        assert json.loads(play_status) == {
+            "connected": False,
+            "messages": 0,
+            "capture": False,
+            "events": 0,
+        }
+        request("/api/play-capture/start", method="POST", body={})
+        play_message = {
+            "id": "match-secret-id",
+            "players": [{"id": "player-secret-id", "name": "Secret Player"}],
+            "player": "Scalar Secret Player",
+            "topic": "0d23d72f-c84f-4bfe-bd76-c20375c43c07.state",
+            "boardName": "Private Board Name",
+            "board": "Private Board Name",
+            "boards": {BOARD_ID: {"score": 64}},
+            "avatarUrl": "https://example.invalid/private-avatar-hash",
+            "turns": [
+                {
+                    "throws": [
+                        {
+                            "segment": {
+                                "name": "T20",
+                                "number": 20,
+                                "bed": "Triple",
+                                "multiplier": 3,
+                            }
+                        }
+                    ]
+                }
+            ],
+            "access_token": "secret-token",
+        }
+        request(
+            "/api/play-event",
+            method="POST",
+            body={
+                "url": f"wss://api.autodarts.io/matches/{BOARD_ID}/events?token=secret-query",
+                "data": json.dumps(play_message),
+                "transport": "websocket",
+            },
+        )
+        _, _, current_play_state = request("/api/play-state")
+        captured = json.loads(current_play_state)
+        encoded = json.dumps(captured)
+        assert captured["source"].startswith("wss://api.autodarts.io/matches/[id-")
+        assert captured["transport"] == "websocket"
+        assert captured["message"]["turns"][0]["throws"][0]["segment"]["name"] == "T20"
+        assert captured["message"]["board"].startswith("[name-")
+        assert "Secret Player" not in encoded
+        assert "match-secret-id" not in encoded
+        assert "player-secret-id" not in encoded
+        assert "secret-token" not in encoded
+        assert "secret-query" not in encoded
+        assert "0d23d72f-c84f-4bfe-bd76-c20375c43c07" not in encoded
+        assert "Private Board Name" not in encoded
+        assert "Scalar Secret Player" not in encoded
+        assert "private-avatar-hash" not in encoded
+        request("/api/play-capture/stop", method="POST", body={})
+        assert (Path(state_dir) / "play-events.jsonl").read_text().count("\n") == 1
+
         _, _, pairing = request("/api/pairing")
         setup_url = json.loads(pairing)["url"]
         token = parse_qs(urlparse(setup_url).query)["token"][0]

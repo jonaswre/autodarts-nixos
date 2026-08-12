@@ -1,0 +1,26 @@
+{
+  "version": "1.0.7",
+  "source": "Board Manager web client shipped by the captured board",
+  "actions": [
+    { "method": "PUT", "path": "/api/start", "effect": "start detection and cameras" },
+    { "method": "PUT", "path": "/api/stop", "effect": "stop detection and cameras" },
+    { "method": "POST", "path": "/api/reset", "effect": "reset the current visit" },
+    { "method": "POST", "path": "/api/restart", "effect": "restart Board Manager" },
+    { "method": "PUT", "path": "/api/streams/start", "effect": "start upstream streaming" },
+    { "method": "PUT", "path": "/api/streams/stop", "effect": "stop upstream streaming" },
+    { "method": "PUT", "path": "/api/upstream/connect", "effect": "connect to Autodarts upstream" },
+    { "method": "PUT", "path": "/api/upstream/disconnect", "effect": "disconnect from Autodarts upstream" },
+    { "method": "PATCH", "path": "/api/config", "effect": "patch configuration" },
+    { "method": "POST", "path": "/api/config/revert", "effect": "revert configuration" },
+    { "method": "POST", "path": "/api/config/auth/reset", "effect": "clear board authentication" },
+    { "method": "PUT", "path": "/api/config/calibration", "effect": "replace calibration" },
+    { "method": "POST", "path": "/api/config/calibration/auto", "effect": "automatically calibrate all cameras" },
+    { "method": "POST", "path": "/api/config/calibration/auto/{camera}", "effect": "automatically calibrate one camera" },
+    { "method": "POST", "path": "/api/config/calibration/auto/{camera}/rotate-left", "effect": "rotate camera calibration" },
+    { "method": "PUT", "path": "/api/config/distortion", "effect": "replace distortion configuration" },
+    { "method": "PUT", "path": "/api/config/distortion/{camera}/enabled", "effect": "enable or disable distortion correction" },
+    { "method": "PUT", "path": "/api/config/distortion/{camera}/alpha", "effect": "set distortion alpha" },
+    { "method": "PATCH", "path": "/api/cams/controls/{camera}", "effect": "change camera controls" },
+    { "method": "POST", "path": "/api/cams/controls/{camera}/reset", "effect": "reset camera controls" }
+  ]
+}

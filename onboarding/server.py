@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import hmac
+import hashlib
 import json
 import os
+import re
 import secrets
 import socket
 import stat
@@ -9,6 +11,7 @@ import threading
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -23,6 +26,12 @@ BOARD_MANAGER = os.environ.get("AUTODARTS_BOARD_MANAGER_URL", "http://127.0.0.1:
 STATE_DIR = Path(os.environ.get("AUTODARTS_ONBOARDING_STATE", "/var/lib/autodarts-onboarding"))
 ASSET_DIR = Path(__file__).resolve().parent
 TOKEN_FILE = STATE_DIR / "pairing-token"
+PLAY_EVENTS_FILE = STATE_DIR / "play-events.jsonl"
+PLAY_STATE_FILE = STATE_DIR / "play-state.json"
+PLAY_SALT_FILE = STATE_DIR / "play-salt"
+UUID_PATTERN = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
 
 
 def board_request(path, method="GET", body=None, timeout=20):
@@ -94,6 +103,84 @@ class State:
     calibration = "idle"
     error = ""
     lock = threading.Lock()
+    play_capture = False
+    play_events = 0
+    play_messages = 0
+
+
+def play_alias(kind, value):
+    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if not PLAY_SALT_FILE.exists():
+        PLAY_SALT_FILE.write_bytes(secrets.token_bytes(32))
+        PLAY_SALT_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    digest = hashlib.sha256(
+        PLAY_SALT_FILE.read_bytes() + kind.encode() + str(value).encode()
+    ).hexdigest()[:12]
+    return f"[{kind}-{digest}]"
+
+
+def sanitize_play_value(value):
+    if isinstance(value, list):
+        return [sanitize_play_value(item) for item in value]
+    if isinstance(value, str):
+        return UUID_PATTERN.sub(lambda match: play_alias("id", match.group(0)), value)
+    if not isinstance(value, dict):
+        return value
+    is_segment = {"bed", "multiplier", "number"}.issubset(value)
+    clean = {}
+    for key, child in value.items():
+        safe_key = UUID_PATTERN.sub(lambda match: play_alias("id", match.group(0)), str(key))
+        lowered = key.lower()
+        if any(word in lowered for word in ("token", "authorization", "cookie", "password", "api_key")):
+            clean[safe_key] = "[redacted]"
+        elif lowered == "email":
+            clean[safe_key] = play_alias("email", child)
+        elif lowered in ("player", "user", "host", "board") and isinstance(child, str):
+            clean[safe_key] = play_alias("name", child)
+        elif lowered.endswith("name") and not is_segment:
+            clean[safe_key] = play_alias("name", child)
+        elif lowered.endswith("url"):
+            clean[safe_key] = "[redacted-url]"
+        elif lowered == "id" or lowered.endswith("_id") or lowered.endswith("id"):
+            clean[safe_key] = play_alias("id", child)
+        else:
+            clean[safe_key] = sanitize_play_value(child)
+    return clean
+
+
+def ingest_play_event(payload):
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), str):
+        raise ValueError("Invalid Play WebSocket event.")
+    if len(payload["data"]) > 4_000_000:
+        raise ValueError("Play WebSocket event is too large.")
+    source = urlparse(str(payload.get("url", "")))
+    if source.scheme not in ("http", "https", "ws", "wss"):
+        raise ValueError("Invalid Play event URL.")
+    try:
+        message = json.loads(payload["data"])
+    except json.JSONDecodeError:
+        message = {"text": payload["data"]}
+    event = {
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "source": UUID_PATTERN.sub(
+            lambda match: play_alias("id", match.group(0)),
+            f"{source.scheme}://{source.hostname or '[host]'}{source.path}",
+        ),
+        "transport": "http-response"
+        if payload.get("transport") == "http-response"
+        else "websocket",
+        "message": sanitize_play_value(message),
+    }
+    encoded = json.dumps(event, separators=(",", ":"))
+    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    PLAY_STATE_FILE.write_text(encoded + "\n")
+    PLAY_STATE_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    State.play_messages += 1
+    if State.play_capture:
+        with PLAY_EVENTS_FILE.open("a", encoding="utf-8") as output:
+            output.write(encoded + "\n")
+        PLAY_EVENTS_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        State.play_events += 1
 
 
 def run_calibration():
@@ -188,6 +275,26 @@ class Handler(BaseHTTPRequestHandler):
                         "error": State.error,
                     },
                 )
+        elif path == "/api/play-state":
+            if not self.require_local_display():
+                return
+            if not PLAY_STATE_FILE.exists():
+                self.send_json(404, {"error": "No Play WebSocket state received yet."})
+                return
+            self.send_bytes(200, "application/json", PLAY_STATE_FILE.read_bytes())
+        elif path == "/api/play-capture/status":
+            if not self.require_local_display():
+                return
+            with State.lock:
+                self.send_json(
+                    200,
+                    {
+                        "connected": State.play_messages > 0,
+                        "messages": State.play_messages,
+                        "capture": State.play_capture,
+                        "events": State.play_events,
+                    },
+                )
         elif path == "/api/configured":
             configured = configuration_state()
             self.send_bytes(204 if configured is True else 503 if configured is None else 409, "text/plain", b"")
@@ -198,7 +305,32 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(404, {"error": "Not found."})
 
     def do_POST(self):
-        if urlparse(self.path).path != "/api/setup":
+        path = urlparse(self.path).path
+        if path in ("/api/play-event", "/api/play-capture/start", "/api/play-capture/stop"):
+            if not self.require_local_display():
+                return
+            with State.lock:
+                if path == "/api/play-capture/start":
+                    PLAY_EVENTS_FILE.unlink(missing_ok=True)
+                    State.play_capture = True
+                    State.play_events = 0
+                    self.send_json(200, {"capture": True, "events": 0})
+                    return
+                if path == "/api/play-capture/stop":
+                    State.play_capture = False
+                    self.send_json(200, {"capture": False, "events": State.play_events})
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                if length < 1 or length > 4_100_000:
+                    self.send_json(413, {"error": "Invalid request size."})
+                    return
+                try:
+                    ingest_play_event(json.loads(self.rfile.read(length)))
+                    self.send_bytes(204, "text/plain", b"")
+                except (OSError, ValueError, json.JSONDecodeError) as error:
+                    self.send_json(400, {"error": str(error)})
+                return
+        if path != "/api/setup":
             self.send_json(404, {"error": "Not found."})
             return
         try:

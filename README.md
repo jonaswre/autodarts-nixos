@@ -35,6 +35,7 @@ by Autodarts.
 - Guarded disk installation and USB flashing workflows
 - Browser remote control over HTTPS for trusted local networks
 - QR-based first-boot setup from a phone on the local network
+- Unified Go client and real protocol corpus for detection, game state, and LEDs
 
 ```text
 USB cameras ──> Autodarts Detection ──> Autodarts services
@@ -118,6 +119,17 @@ The onboarding service then:
 3. Configures 1280x720 at 30 FPS.
 4. Enables automatic calibration and distortion handling.
 5. Starts calibration and opens Autodarts Play on the appliance.
+
+## Go client
+
+The public [`autodarts`](autodarts/) package combines local Board Manager state
+and control with Play match state. Consumers get one snapshot containing camera
+detection status, throws, remaining score, checkout guidance, and match result.
+It is designed for integrations such as highlighting `NextTarget()` with LEDs.
+
+The API and its end-to-end tests are backed by the sanitized real-device corpus
+under [`protocol/testdata`](protocol/testdata/), including a complete Random
+Checkout match from 64 to a D2 finish. See the [Go client guide](autodarts/README.md).
 
 Pairing details and the QR are served only to the appliance's loopback display.
 The phone submits credentials in the request body, not the URL, and the service

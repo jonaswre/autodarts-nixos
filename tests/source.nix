@@ -9,9 +9,13 @@ pkgs.runCommand "autodarts-source-checks"
   ''
     shellcheck ${../install.sh} ${../scripts/flash-installer.sh}
     jq -e '.manifest_version == 3' ${../kiosk/extension/manifest.json} >/dev/null
-    jq -e '.content_scripts[0].matches | index("https://play.autodarts.io/*")' \
+    jq -e '[.content_scripts[].matches[]] | index("https://play.autodarts.io/*")' \
       ${../kiosk/extension/manifest.json} >/dev/null
-    jq -e '.content_scripts[0].matches | index("http://127.0.0.1:3180/*")' \
+    jq -e '.content_scripts[] | select(.world == "MAIN")' ${../kiosk/extension/manifest.json} >/dev/null
+    grep -F "autodarts-play-websocket" ${../kiosk/extension/websocket-capture.js}
+    grep -F "http://127.0.0.1:3182/api/play-event" ${../kiosk/extension/background.js}
+    grep -F 'elif path == "/api/play-state"' ${../onboarding/server.py}
+    jq -e '[.content_scripts[].matches[]] | index("http://127.0.0.1:3180/*")' \
       ${../kiosk/extension/manifest.json} >/dev/null
     grep -F "location.href = onBoardManager" ${../kiosk/extension/controls.js}
     grep -F "https://play.autodarts.io/" ${../kiosk/extension/controls.js}

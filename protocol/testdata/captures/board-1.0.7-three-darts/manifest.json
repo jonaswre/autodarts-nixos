@@ -1,0 +1,8 @@
+{
+  "captured_at": "2026-08-12T12:04:48.1025405Z",
+  "base_url": "http://[board]",
+  "event_duration": "1s",
+  "http_fixtures": 13,
+  "event_count": 4,
+  "redacted": true
+}

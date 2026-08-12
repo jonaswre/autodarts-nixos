@@ -9,6 +9,17 @@
   },
   "content_scripts": [
     {
+      "matches": ["https://play.autodarts.io/*"],
+      "js": ["websocket-capture.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://play.autodarts.io/*"],
+      "js": ["capture-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
       "matches": [
         "https://play.autodarts.io/*",
         "http://127.0.0.1:3180/*"

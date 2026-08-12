@@ -1,0 +1,9 @@
+{
+  "captured_at": "2026-08-12T12:09:04Z",
+  "base_url": "http://[board]",
+  "event_duration": "operator-controlled",
+  "http_fixtures": 13,
+  "event_count": 204,
+  "redacted": true,
+  "completed_by": "operator after calibration finished and post-calibration state was captured"
+}

@@ -13,6 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test protocol collector and captured corpus
+        run: go test ./...
       - run: nix flake check --no-build
       - name: Run user-journey and source checks
         run: |
@@ -20,5 +26,7 @@ jobs:
             .#checks.x86_64-linux.kiosk \
             .#checks.x86_64-linux.github-keys \
             .#checks.x86_64-linux.onboarding \
+            .#checks.x86_64-linux.remote-control \
             .#checks.x86_64-linux.rotation-choice \
+            .#checks.x86_64-linux.display-scale \
             .#checks.x86_64-linux.source

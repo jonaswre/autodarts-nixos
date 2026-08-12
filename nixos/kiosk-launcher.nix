@@ -5,6 +5,8 @@ let
     install -Dm644 ${../kiosk/extension/manifest.json} $out/manifest.json
     install -Dm644 ${../kiosk/extension/controls.js} $out/controls.js
     install -Dm644 ${../kiosk/extension/background.js} $out/background.js
+    install -Dm644 ${../kiosk/extension/websocket-capture.js} $out/websocket-capture.js
+    install -Dm644 ${../kiosk/extension/capture-bridge.js} $out/capture-bridge.js
   '';
   loadingPage = pkgs.runCommand "autodarts-kiosk-loading" { } ''
     install -Dm644 ${../kiosk/loading.html} $out/loading.html
