@@ -14,7 +14,7 @@ pkgs.runCommand "autodarts-source-checks"
     jq -e '.content_scripts[] | select(.world == "MAIN")' ${../kiosk/extension/manifest.json} >/dev/null
     grep -F "autodarts-play-websocket" ${../kiosk/extension/websocket-capture.js}
     grep -F "http://127.0.0.1:3182/api/play-event" ${../kiosk/extension/background.js}
-    grep -F 'elif path == "/api/play-state"' ${../onboarding/server.py}
+    grep -F 'case "/api/play-state"' ${../cmd/autodarts-onboarding/main.go}
     jq -e '[.content_scripts[].matches[]] | index("http://127.0.0.1:3180/*")' \
       ${../kiosk/extension/manifest.json} >/dev/null
     grep -F "location.href = onBoardManager" ${../kiosk/extension/controls.js}
@@ -35,7 +35,7 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F "ConditionPathExists" ${../nixos/kiosk.nix}
     grep -F "https://github.com/\$github_user.keys" ${../nixos/installer.nix}
     grep -F "Portrait, monitor rotated clockwise" ${../nixos/installer.nix}
-    grep -F "Pairing details are only shown on the appliance display" ${../onboarding/server.py}
+    grep -F "Pairing details are only shown on the appliance display" ${../cmd/autodarts-onboarding/main.go}
     grep -F 'id="board-id"' ${../onboarding/setup.html}
     grep -F 'id="api-key"' ${../onboarding/setup.html}
     touch $out

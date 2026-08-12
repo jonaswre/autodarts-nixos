@@ -13,7 +13,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 
-APP_DIR = Path(sys.argv[1])
+APP = Path(sys.argv[1])
+ASSET_DIR = Path(sys.argv[2])
 MANAGER_PORT = 18082
 PORTAL_PORT = 18083
 BOARD_ID = "4dff4c92-3451-450e-9cc4-d163090a156a"
@@ -106,9 +107,10 @@ with tempfile.TemporaryDirectory() as state_dir:
             "AUTODARTS_BOARD_MANAGER_URL": f"http://127.0.0.1:{MANAGER_PORT}/api",
             "AUTODARTS_ONBOARDING_STATE": state_dir,
             "AUTODARTS_ONBOARDING_ADVERTISED_HOST": "192.0.2.10",
+            "AUTODARTS_ONBOARDING_ASSETS": str(ASSET_DIR),
         }
     )
-    portal = subprocess.Popen([sys.executable, str(APP_DIR / "server.py")], env=environment)
+    portal = subprocess.Popen([str(APP)], env=environment)
     try:
         wait_ready()
 

@@ -1,14 +1,14 @@
 { pkgs }:
 let
-  python = pkgs.python3.withPackages (packages: [ packages.qrcode ]);
-  application = pkgs.runCommand "autodarts-onboarding-test-app" { } ''
-    mkdir -p $out
-    cp ${../onboarding/server.py} $out/server.py
-    cp ${../onboarding/device.html} $out/device.html
-    cp ${../onboarding/setup.html} $out/setup.html
-  '';
+  application = pkgs.buildGoModule {
+    pname = "autodarts-onboarding-test-app";
+    version = "0.1.0";
+    src = ../.;
+    subPackages = [ "cmd/autodarts-onboarding" ];
+    vendorHash = "sha256-imsXbwHohEy9hQqnpPa2NBIK9YGk2lY09cM4hDWFFcI=";
+  };
 in
-pkgs.runCommand "autodarts-onboarding-behavior" { nativeBuildInputs = [ python ]; } ''
-  python ${./onboarding.py} ${application}
+pkgs.runCommand "autodarts-onboarding-behavior" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+  python ${./onboarding.py} ${application}/bin/autodarts-onboarding ${../onboarding}
   touch $out
 ''

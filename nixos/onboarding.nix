@@ -6,13 +6,18 @@
 }:
 let
   cfg = config.services.autodarts-onboarding;
-  python = pkgs.python3.withPackages (packages: [ packages.qrcode ]);
-  application = pkgs.runCommand "autodarts-onboarding" { } ''
-    mkdir -p $out/share/autodarts-onboarding
-    install -Dm755 ${../onboarding/server.py} $out/share/autodarts-onboarding/server.py
+  application = pkgs.buildGoModule {
+    pname = "autodarts-onboarding";
+    version = "0.1.0";
+    src = ../.;
+    subPackages = [ "cmd/autodarts-onboarding" ];
+    vendorHash = "sha256-imsXbwHohEy9hQqnpPa2NBIK9YGk2lY09cM4hDWFFcI=";
+    postInstall = ''
+      mkdir -p $out/share/autodarts-onboarding
     install -Dm644 ${../onboarding/device.html} $out/share/autodarts-onboarding/device.html
     install -Dm644 ${../onboarding/setup.html} $out/share/autodarts-onboarding/setup.html
-  '';
+    '';
+  };
 in
 {
   options.services.autodarts-onboarding = {
@@ -44,13 +49,14 @@ in
       environment = {
         AUTODARTS_ONBOARDING_PORT = toString cfg.port;
         AUTODARTS_ONBOARDING_STATE = "/var/lib/autodarts-onboarding";
+        AUTODARTS_ONBOARDING_ASSETS = "${application}/share/autodarts-onboarding";
       };
       serviceConfig = {
         User = "autodarts-onboarding";
         Group = "autodarts-onboarding";
         StateDirectory = "autodarts-onboarding";
         StateDirectoryMode = "0700";
-        ExecStart = "${python}/bin/python ${application}/share/autodarts-onboarding/server.py";
+        ExecStart = "${application}/bin/autodarts-onboarding";
         Restart = "on-failure";
         RestartSec = "2s";
         NoNewPrivileges = true;
