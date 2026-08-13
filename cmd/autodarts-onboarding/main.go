@@ -218,6 +218,24 @@ func (s *service) configured() (bool, bool) {
 	}
 	return config.Auth.BoardID != "", true
 }
+
+func (s *service) waitForBoardID(boardID string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for {
+		var config struct {
+			Auth struct {
+				BoardID string `json:"board_id"`
+			} `json:"auth"`
+		}
+		if s.board("GET", "/config", nil, &config, 3*time.Second) == nil && config.Auth.BoardID == boardID {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
 func (s *service) file(name string) string { return filepath.Join(s.stateDir, name) }
 func (s *service) token() (string, error) {
 	if data, err := os.ReadFile(s.file("pairing-token")); err == nil {
@@ -318,15 +336,33 @@ func (s *service) setup(w http.ResponseWriter, r *http.Request) {
 		s.reply(w, 400, map[string]any{"error": err.Error()})
 		return
 	}
-	patch := map[string]any{"auth": map[string]any{"board_id": data.BoardID, "api_key": data.APIKey}, "cam": map[string]any{"cams": cams, "width": 1280, "height": 720, "fps": 30, "rotate_180": []bool{false, false, false}, "auto_calibrate": true, "auto_calibrate_on_start": true, "auto_distortion": true}}
+	// Detection 1.0.7 panics if automatic calibration is enabled while its
+	// persisted calibration map is still nil. Its calibration GET returns a
+	// valid three-camera baseline, so persist that before invoking auto-calibration.
+	var baseline json.RawMessage
+	if err := s.board("GET", "/config/calibration", nil, &baseline, 20*time.Second); err != nil {
+		s.reply(w, 400, map[string]any{"error": err.Error()})
+		return
+	}
+	if err := s.board("PUT", "/config/calibration", baseline, nil, 20*time.Second); err != nil {
+		s.reply(w, 400, map[string]any{"error": err.Error()})
+		return
+	}
+	patch := map[string]any{"auth": map[string]any{"board_id": data.BoardID, "api_key": data.APIKey}, "cam": map[string]any{"cams": cams, "width": 1280, "height": 720, "fps": 30, "rotate_180": []bool{false, false, false}, "auto_calibrate": false, "auto_calibrate_on_start": false, "auto_distortion": true}}
 	var config struct {
 		Auth struct {
 			BoardID string `json:"board_id"`
 		} `json:"auth"`
 	}
 	if err := s.board("PATCH", "/config", patch, &config, 20*time.Second); err != nil {
-		s.reply(w, 400, map[string]any{"error": err.Error()})
-		return
+		// Board Manager may persist the configuration and restart before it can
+		// finish the PATCH response. Reconcile the observable state before
+		// reporting an error or leaving the pairing token active.
+		if !s.waitForBoardID(data.BoardID, 20*time.Second) {
+			s.reply(w, 400, map[string]any{"error": err.Error()})
+			return
+		}
+		config.Auth.BoardID = data.BoardID
 	}
 	if config.Auth.BoardID != data.BoardID {
 		s.reply(w, 400, map[string]any{"error": "Board Manager did not retain the Board ID."})

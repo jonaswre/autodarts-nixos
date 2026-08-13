@@ -21,12 +21,23 @@ func testService(t *testing.T) *service {
 func TestUserCompletesPhoneSetupAndStartsCalibration(t *testing.T) {
 	var patched map[string]any
 	var calibrated atomic.Bool
+	var initialized atomic.Bool
 	manager := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == "GET" && r.URL.Path == "/api/config":
 			json.NewEncoder(w).Encode(map[string]any{"auth": map[string]any{"board_id": ""}})
 		case r.Method == "GET" && r.URL.Path == "/api/devices":
 			json.NewEncoder(w).Encode([]any{map[string]any{"bus": "usb-3", "formats": []any{map[string]any{"path": "/dev/video4"}}}, map[string]any{"bus": "usb-1", "formats": []any{map[string]any{"path": "/dev/video0"}}}, map[string]any{"bus": "usb-2", "formats": []any{map[string]any{"path": "/dev/video2"}}}})
+		case r.Method == "GET" && r.URL.Path == "/api/config/calibration":
+			json.NewEncoder(w).Encode([]any{[]any{[]float64{1, 2}}, []any{[]float64{3, 4}}, []any{[]float64{5, 6}}})
+		case r.Method == "PUT" && r.URL.Path == "/api/config/calibration":
+			var baseline []any
+			if json.NewDecoder(r.Body).Decode(&baseline) != nil || len(baseline) != 3 {
+				http.Error(w, "invalid baseline", http.StatusBadRequest)
+				return
+			}
+			initialized.Store(true)
+			w.WriteHeader(http.StatusNoContent)
 		case r.Method == "PATCH" && r.URL.Path == "/api/config":
 			json.NewDecoder(r.Body).Decode(&patched)
 			json.NewEncoder(w).Encode(patched)
@@ -55,6 +66,12 @@ func TestUserCompletesPhoneSetupAndStartsCalibration(t *testing.T) {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
 	cam := patched["cam"].(map[string]any)
+	if !initialized.Load() {
+		t.Fatal("calibration map was not initialized before setup")
+	}
+	if cam["auto_calibrate"] != false || cam["auto_calibrate_on_start"] != false {
+		t.Fatalf("automatic calibration was enabled in the initial patch: %v", cam)
+	}
 	got := cam["cams"].([]any)
 	if fmt.Sprint(got) != "[/dev/video0 /dev/video2 /dev/video4]" {
 		t.Fatalf("cameras=%v", got)
@@ -70,6 +87,64 @@ func TestUserCompletesPhoneSetupAndStartsCalibration(t *testing.T) {
 	s.ServeHTTP(second, httptest.NewRequest(http.MethodPost, "http://appliance/api/setup", strings.NewReader(body)))
 	if second.Code != 403 {
 		t.Fatalf("consumed token status=%d", second.Code)
+	}
+}
+
+func TestSetupSucceedsWhenBoardManagerAppliesPatchThenClosesConnection(t *testing.T) {
+	const boardID = "4dff4c92-3451-450e-9cc4-d163090a156a"
+	var configured atomic.Bool
+	var calibrated atomic.Bool
+	manager := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/api/devices":
+			json.NewEncoder(w).Encode([]any{
+				map[string]any{"bus": "usb-1", "formats": []any{map[string]any{"path": "/dev/video0"}}},
+				map[string]any{"bus": "usb-2", "formats": []any{map[string]any{"path": "/dev/video2"}}},
+				map[string]any{"bus": "usb-3", "formats": []any{map[string]any{"path": "/dev/video4"}}},
+			})
+		case r.Method == "GET" && r.URL.Path == "/api/config/calibration":
+			json.NewEncoder(w).Encode([]any{[]any{}, []any{}, []any{}})
+		case r.Method == "PUT" && r.URL.Path == "/api/config/calibration":
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == "PATCH" && r.URL.Path == "/api/config":
+			configured.Store(true)
+			panic(http.ErrAbortHandler)
+		case r.Method == "GET" && r.URL.Path == "/api/config":
+			storedID := ""
+			if configured.Load() {
+				storedID = boardID
+			}
+			json.NewEncoder(w).Encode(map[string]any{"auth": map[string]any{"board_id": storedID}})
+		case r.Method == "POST" && r.URL.Path == "/api/config/calibration/auto":
+			calibrated.Store(true)
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer manager.Close()
+
+	s := testService(t)
+	s.boardURL = manager.URL + "/api"
+	token, err := s.token()
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := fmt.Sprintf(`{"token":%q,"board_id":%q,"api_key":"test-api-key-1234567890"}`, token, boardID)
+	response := httptest.NewRecorder()
+	s.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(body)))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if _, err := os.Stat(s.file("pairing-token")); !os.IsNotExist(err) {
+		t.Fatalf("pairing token was not consumed: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for !calibrated.Load() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if !calibrated.Load() {
+		t.Fatal("calibration was not started after reconciled setup")
 	}
 }
 

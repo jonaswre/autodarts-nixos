@@ -21,7 +21,8 @@
     },
     {
       "matches": [
-        "https://play.autodarts.io/*",
+        "https://*.autodarts.io/*",
+        "https://*.autodarts.com/*",
         "http://127.0.0.1:3180/*"
       ],
       "js": ["controls.js"],

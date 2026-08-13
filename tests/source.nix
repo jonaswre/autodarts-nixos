@@ -17,6 +17,10 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F 'case "/api/play-state"' ${../cmd/autodarts-onboarding/main.go}
     jq -e '[.content_scripts[].matches[]] | index("http://127.0.0.1:3180/*")' \
       ${../kiosk/extension/manifest.json} >/dev/null
+    jq -e '[.content_scripts[].matches[]] | index("https://*.autodarts.io/*")' \
+      ${../kiosk/extension/manifest.json} >/dev/null
+    jq -e '[.content_scripts[].matches[]] | index("https://*.autodarts.com/*")' \
+      ${../kiosk/extension/manifest.json} >/dev/null
     grep -F "location.href = onBoardManager" ${../kiosk/extension/controls.js}
     grep -F "https://play.autodarts.io/" ${../kiosk/extension/controls.js}
     grep -F "http://127.0.0.1:3180/" ${../kiosk/extension/controls.js}

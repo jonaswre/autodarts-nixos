@@ -83,8 +83,22 @@ let
       read -r github_user
       ssh_keys=""
       if [[ -n "$github_user" ]]; then
-        echo "Downloading public keys from https://github.com/$github_user.keys"
-        ssh_keys="$(${githubKeys}/bin/autodarts-github-keys "$github_user")"
+        while true; do
+          echo "Waiting for the network and downloading public keys from https://github.com/$github_user.keys"
+          if ssh_keys="$(${githubKeys}/bin/autodarts-github-keys "$github_user")"; then
+            echo "Found $(printf '%s\n' "$ssh_keys" | wc -l) public SSH key(s)."
+            break
+          fi
+          echo
+          echo "GitHub is not reachable yet, or the account has no supported public SSH keys."
+          echo "Check the network with: nmcli device status"
+          echo "Press Enter to retry, or type SKIP to install without SSH access:"
+          read -r key_retry
+          if [[ "$key_retry" == "SKIP" ]]; then
+            ssh_keys=""
+            break
+          fi
+        done
       fi
 
       echo

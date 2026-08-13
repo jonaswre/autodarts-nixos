@@ -1,5 +1,6 @@
 /result
 /result-*
+/dist/
 /*.iso
 *.qcow2
 *.img

@@ -10,12 +10,25 @@ pkgs.writeShellApplication {
 
     username="$1"
     base_url="''${GITHUB_KEYS_BASE_URL:-https://github.com}"
-    response=$(curl --fail --silent --show-error --max-time 15 \
-      --retry 2 --retry-connrefused --retry-delay 0 \
-      "$base_url/$username.keys") || {
-      echo "Could not download SSH keys for GitHub user: $username" >&2
-      exit 1
+    curl_bin="''${GITHUB_KEYS_CURL:-curl}"
+
+    download_keys() {
+      "$curl_bin" --fail --silent --show-error \
+        --connect-timeout "''${GITHUB_KEYS_CONNECT_TIMEOUT:-10}" \
+        --max-time "''${GITHUB_KEYS_MAX_TIME:-45}" \
+        --retry "''${GITHUB_KEYS_RETRIES:-4}" \
+        --retry-all-errors \
+        --retry-delay "''${GITHUB_KEYS_RETRY_DELAY:-2}" \
+        "$@" "$base_url/$username.keys"
     }
+
+    if ! response="$(download_keys)"; then
+      echo "Normal GitHub connection failed; retrying this request over IPv4." >&2
+      response="$(download_keys --ipv4)" || {
+        echo "Could not download SSH keys for GitHub user: $username" >&2
+        exit 1
+      }
+    fi
 
     valid_keys=()
     while IFS= read -r key; do

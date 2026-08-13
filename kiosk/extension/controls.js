@@ -9,8 +9,7 @@
   button.textContent = onBoardManager ? '×' : 'Board';
   const remote = document.createElement('aside');
   remote.setAttribute('aria-label', 'Remote control QR code');
-  remote.hidden = true;
-  remote.innerHTML = '<strong>Remote control</strong><span>Scan with your phone</span>';
+  remote.innerHTML = '<strong>Remote control</strong><span>Preparing QR…</span>';
 
   const style = document.createElement('style');
   style.textContent = `
@@ -42,14 +41,20 @@
       ? 'https://play.autodarts.io/'
       : 'http://127.0.0.1:3180/';
   });
-  chrome.runtime.sendMessage('autodarts-remote-control-qr', response => {
-    if (chrome.runtime.lastError || !response?.svg) return;
-    const image = document.createElement('img');
-    image.alt = 'QR code for browser remote control';
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(response.svg)}`;
-    remote.prepend(image);
-    remote.hidden = false;
-  });
+  const loadRemoteQR = () => {
+    chrome.runtime.sendMessage('autodarts-remote-control-qr', response => {
+      if (chrome.runtime.lastError || !response?.svg) {
+        setTimeout(loadRemoteQR, 2000);
+        return;
+      }
+      const image = document.createElement('img');
+      image.alt = 'QR code for browser remote control';
+      image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(response.svg)}`;
+      remote.prepend(image);
+      remote.querySelector('span').textContent = 'Scan with your phone';
+    });
+  };
+  loadRemoteQR();
 
   root.append(style, button, remote);
   document.documentElement.append(host);
