@@ -18,5 +18,6 @@ pkgs.runCommand "autodarts-dataset-service-check" { } ''
   command=${lib.escapeShellArg service.serviceConfig.ExecStart}
   printf '%s\n' "$command" | grep -F '0.0.0.0:8090'
   printf '%s\n' "$command" | grep -F -- '-quota-gb 20'
+  printf '%s\n' "$command" | grep -F -- '-world-reference-interval 300s'
   touch "$out"
 ''

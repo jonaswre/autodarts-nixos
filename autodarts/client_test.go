@@ -93,6 +93,25 @@ func TestUserCanInspectAndControlBoard(t *testing.T) {
 	}
 }
 
+func TestUserCanReadBoardManagerPlainTextVersion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte("1.0.7"))
+	}))
+	defer server.Close()
+	client, err := New(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version, err := client.Version(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version != "1.0.7" {
+		t.Fatalf("version = %q, want 1.0.7", version)
+	}
+}
+
 func TestUserReceivesLiveBoardState(t *testing.T) {
 	upgrader := websocket.Upgrader{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -93,9 +94,31 @@ func (c *Client) Host(ctx context.Context) (Host, error) {
 	return v, err
 }
 func (c *Client) Version(ctx context.Context) (string, error) {
-	var v string
-	err := c.get(ctx, "version", &v)
-	return v, err
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base.String()+"/api/version", nil)
+	if err != nil {
+		return "", err
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(res.Body, 4096))
+	if err != nil {
+		return "", err
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return "", fmt.Errorf("GET api/version: %s: %s", res.Status, strings.TrimSpace(string(data)))
+	}
+	var quoted string
+	if json.Unmarshal(data, &quoted) == nil {
+		return quoted, nil
+	}
+	plain := strings.TrimSpace(string(data))
+	if plain == "" {
+		return "", errors.New("GET api/version: empty response")
+	}
+	return plain, nil
 }
 func (c *Client) CameraState(ctx context.Context) (CameraState, error) {
 	var v CameraState

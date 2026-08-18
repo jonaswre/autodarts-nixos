@@ -132,9 +132,10 @@ under [`protocol/testdata`](protocol/testdata/), including a complete Random
 Checkout match from 64 to a D2 finish. See the [Go client guide](autodarts/README.md).
 
 For machine-learning experiments, the standalone
-[`autodarts-dataset`](dataset/README.md) Go tool records accepted darts with
-exact Board Manager coordinates and synchronized before/after frames from all
-three cameras. Collection is local-only and opt-in.
+[`autodarts-dataset`](dataset/README.md) Go tool records complete physical-board
+world states, exact Board Manager coordinates, raw event context, and
+synchronized frame bursts from all three cameras. Collection is local-only and
+opt-in.
 
 Pairing details and the QR are served only to the appliance's loopback display.
 The phone submits credentials in the request body, not the URL, and the service

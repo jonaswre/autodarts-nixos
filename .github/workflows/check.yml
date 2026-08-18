@@ -29,4 +29,5 @@ jobs:
             .#checks.x86_64-linux.remote-control \
             .#checks.x86_64-linux.rotation-choice \
             .#checks.x86_64-linux.display-scale \
+            .#checks.x86_64-linux.dataset-service \
             .#checks.x86_64-linux.source
