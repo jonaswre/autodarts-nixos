@@ -35,8 +35,8 @@
         "180" = mkSystem "/dev/nvme0n1" "180";
         "270" = mkSystem "/dev/nvme0n1" "270";
       };
-      # The installed system keeps the rotation selected by the installer in
-      # configuration.nix. Only the pre-built installer targets force a value.
+      # The installed system keeps installer choices in device-local.nix.
+      # Only the pre-built installer targets force a value.
       beelinkSystem = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs.disk = "/dev/nvme0n1";
@@ -73,7 +73,15 @@
           pkgs = nixpkgs.legacyPackages.${system};
         };
         rotation-choice = import ./tests/rotation-choice.nix { pkgs = nixpkgs.legacyPackages.${system}; };
+        rotation-persistence = import ./tests/rotation-persistence.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          lib = nixpkgs.lib;
+        };
         display-scale = import ./tests/display-scale.nix { pkgs = nixpkgs.legacyPackages.${system}; };
+        dataset-service = import ./tests/dataset-service.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          lib = nixpkgs.lib;
+        };
         source = import ./tests/source.nix { pkgs = nixpkgs.legacyPackages.${system}; };
       };
       formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt;

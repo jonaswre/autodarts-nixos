@@ -122,9 +122,12 @@ let
 
       install -d /mnt/etc/nixos
       cp -a ${source}/. /mnt/etc/nixos/
-      sed -i \
-        "s/services.autodarts-kiosk.rotation = \"normal\";/services.autodarts-kiosk.rotation = \"$rotation\";/" \
-        /mnt/etc/nixos/nixos/configuration.nix
+      printf '%s\n' \
+        '{ ... }:' \
+        '{' \
+        "  services.autodarts-kiosk.rotation = \"$rotation\";" \
+        '}' \
+        > /mnt/etc/nixos/device-local.nix
       nixos-install --no-root-password --system "$target_system"
 
       nixos-enter --root /mnt -c "autodarts-vnc-setup"

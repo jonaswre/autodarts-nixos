@@ -1,6 +1,7 @@
 /result
 /result-*
 /dist/
+/autodarts-dataset/
 /*.iso
 *.qcow2
 *.img

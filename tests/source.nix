@@ -32,7 +32,10 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F "Timed out waiting for the kiosk Wayland socket" ${../nixos/kiosk.nix}
     grep -F 'Restart = "always"' ${../nixos/kiosk.nix}
     grep -F '"$randr" --output "$connector" --scale "$scale"' ${../nixos/kiosk-launcher.nix}
-    grep -F 'The installed system keeps the rotation selected by the installer' ${../flake.nix}
+    grep -F 'The installed system keeps installer choices in device-local.nix' ${../flake.nix}
+    grep -F 'device-local.nix' ${../nixos/configuration.nix}
+    grep -F 'services.autodarts-kiosk.rotation = lib.mkDefault "normal";' ${../nixos/configuration.nix}
+    grep -F '> /mnt/etc/nixos/device-local.nix' ${../nixos/installer.nix}
     grep -F "autodarts-novnc" ${../nixos/kiosk.nix}
     grep -F -- "--cert" ${../nixos/kiosk.nix}
     grep -F 'nixos-enter --root /mnt -c "autodarts-vnc-setup"' ${../nixos/installer.nix}
@@ -42,5 +45,6 @@ pkgs.runCommand "autodarts-source-checks"
     grep -F "Pairing details are only shown on the appliance display" ${../cmd/autodarts-onboarding/main.go}
     grep -F 'id="board-id"' ${../onboarding/setup.html}
     grep -F 'id="api-key"' ${../onboarding/setup.html}
+    grep -F 'StateDirectory = "autodarts-dataset"' ${../nixos/dataset.nix}
     touch $out
   ''

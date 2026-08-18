@@ -131,6 +131,11 @@ The API and its end-to-end tests are backed by the sanitized real-device corpus
 under [`protocol/testdata`](protocol/testdata/), including a complete Random
 Checkout match from 64 to a D2 finish. See the [Go client guide](autodarts/README.md).
 
+For machine-learning experiments, the standalone
+[`autodarts-dataset`](dataset/README.md) Go tool records accepted darts with
+exact Board Manager coordinates and synchronized before/after frames from all
+three cameras. Collection is local-only and opt-in.
+
 Pairing details and the QR are served only to the appliance's loopback display.
 The phone submits credentials in the request body, not the URL, and the service
 does not log requests. Port `3182` must remain limited to the trusted local
@@ -139,9 +144,10 @@ confirmation in Board Manager because camera placement is physical.
 
 ## Display rotation
 
-The installer asks for the display orientation and persists the selection.
-Landscape is the safe default. To change it later, set the rotation in
-`nixos/configuration.nix` and rebuild:
+The installer asks for the display orientation and persists the selection in
+`device-local.nix`, which is deliberately kept separate from repository
+updates. Landscape is the safe default. To change it later, edit
+`/etc/nixos/device-local.nix` and rebuild:
 
 ```nix
 services.autodarts-kiosk.rotation = "90";

@@ -2,11 +2,13 @@
 {
   imports = [
     ./autodarts.nix
+    ./dataset.nix
     ./kiosk.nix
-  ];
+  ]
+  ++ lib.optional (builtins.pathExists ../device-local.nix) ../device-local.nix;
 
   # Change to "normal", "180", or "270" for a different mounting direction.
-  services.autodarts-kiosk.rotation = "normal";
+  services.autodarts-kiosk.rotation = lib.mkDefault "normal";
 
   networking = {
     hostName = "autodarts";
