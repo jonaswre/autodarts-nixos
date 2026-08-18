@@ -99,6 +99,7 @@ pkgs.writeShellApplication {
           --enable-features=UseOzonePlatform \
           --kiosk \
           --no-first-run \
+          --restore-last-session \
           --disable-session-crashed-bubble \
           --disable-component-update \
           --disable-background-networking \

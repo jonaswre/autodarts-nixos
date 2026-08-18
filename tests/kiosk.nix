@@ -49,6 +49,7 @@ pkgs.runCommand "autodarts-kiosk-behavior"
 
     grep -E -- '^--app=file:///nix/store/.*/loading.html$' "$out/splash-arguments"
     grep -Fx -- '--kiosk' "$out/browser-arguments"
+    grep -Fx -- '--restore-last-session' "$out/browser-arguments"
     grep -Fx -- '--app=https://play.autodarts.io/' "$out/browser-arguments"
     grep -E -- '^--load-extension=/nix/store/' "$out/browser-arguments"
     grep -Fx -- '--scale' "$out/randr-arguments"
