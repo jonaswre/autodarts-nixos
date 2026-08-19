@@ -83,6 +83,30 @@ func (c *Client) request(ctx context.Context, method, path string, body, target 
 	return json.NewDecoder(res.Body).Decode(target)
 }
 
+func (c *Client) bytes(ctx context.Context, path string, limit int64) ([]byte, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base.String()+"/api/"+path, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		data, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return nil, "", fmt.Errorf("GET api/%s: %s: %s", path, res.Status, strings.TrimSpace(string(data)))
+	}
+	data, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if int64(len(data)) > limit {
+		return nil, "", fmt.Errorf("GET api/%s: response exceeds %d bytes", path, limit)
+	}
+	return data, res.Header.Get("Content-Type"), nil
+}
+
 func (c *Client) BoardState(ctx context.Context) (BoardState, error) {
 	var v BoardState
 	err := c.get(ctx, "state", &v)
@@ -134,6 +158,28 @@ func (c *Client) DetectionStats(ctx context.Context) (DetectionStats, error) {
 	var v DetectionStats
 	err := c.get(ctx, "state/stats", &v)
 	return v, err
+}
+func (c *Client) Detections(ctx context.Context) (json.RawMessage, error) {
+	data, _, err := c.bytes(ctx, "state/detections", 4<<20)
+	if err != nil {
+		return nil, err
+	}
+	if !json.Valid(data) {
+		return nil, errors.New("GET api/state/detections: invalid JSON")
+	}
+	return json.RawMessage(data), nil
+}
+func (c *Client) DetectionImage(ctx context.Context, variant string) ([]byte, string, error) {
+	path := "img/detection"
+	if variant != "" {
+		switch variant {
+		case "before", "after", "diff", "movement", "skeleton", "export":
+		default:
+			return nil, "", fmt.Errorf("unsupported detection image variant %q", variant)
+		}
+		path += "/" + variant
+	}
+	return c.bytes(ctx, path, 16<<20)
 }
 func (c *Client) Devices(ctx context.Context) ([]Device, error) {
 	var v []Device

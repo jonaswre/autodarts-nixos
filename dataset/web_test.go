@@ -56,7 +56,11 @@ func TestDashboardOffersDetectedBoardFeatureOverlay(t *testing.T) {
 		"Bull</span>",
 		"Calibration</span>",
 		"Teacher dart</span>",
+		"Tip-flight line</span>",
 		"dart-marker",
+		"teacher-detection-line",
+		"teacherLinesFor",
+		"detection?.imageLine",
 		"preview_darts?.after",
 	} {
 		if !strings.Contains(body, visibleBehavior) {
@@ -145,6 +149,11 @@ func TestDashboardPreviewsRecordedSampleWithExactCoordinates(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	teacherData := []byte(`[{"detections":[{"imageLine":{"x1":314.36,"y1":133,"x2":428.98,"y2":368}}]}]`)
+	teacherName := "teacher-detections.json"
+	if err := os.WriteFile(filepath.Join(directory, teacherName), teacherData, 0600); err != nil {
+		t.Fatal(err)
+	}
 	sessionID, setupID := "session-20260813T180000Z", "0123456789abcdef"
 	setupDirectory := filepath.Join(output, ".sessions", sessionID)
 	if err := os.MkdirAll(setupDirectory, 0700); err != nil {
@@ -169,6 +178,10 @@ func TestDashboardPreviewsRecordedSampleWithExactCoordinates(t *testing.T) {
 		Coordinates: autodarts.Coordinates{X: 0.1277737042977262, Y: 0.1502979414527876},
 		Segment:     autodarts.Segment{Name: "S18", Number: 18, Multiplier: 1, Bed: "SingleInner"}, DartIndex: 2, DartCount: 2,
 		Frames: frames, FrameSequence: sequence, ReviewStatus: "unreviewed",
+		TeacherArtifacts: []TeacherArtifact{{
+			Kind: "detections", File: teacherName, Source: "api/state/detections", MediaType: "application/json",
+			SHA256: fmt.Sprintf("%x", sha256.Sum256(teacherData)),
+		}},
 	}
 	firstDart := PhysicalDart{ID: "dart-1", Order: 1, Coordinates: autodarts.Coordinates{X: -0.2, Y: 0.3}, Segment: autodarts.Segment{Name: "S5"}}
 	secondDart := PhysicalDart{ID: "dart-2", Order: 2, Coordinates: label.Coordinates, Segment: label.Segment}
@@ -198,6 +211,11 @@ func TestDashboardPreviewsRecordedSampleWithExactCoordinates(t *testing.T) {
 	dashboard.ServeHTTP(image, httptest.NewRequest(http.MethodGet, "/samples/"+sampleID+"/cam-0-before.jpg", nil))
 	if image.Code != http.StatusOK || image.Header().Get("Content-Type") != "image/jpeg" || len(image.Body.Bytes()) != 6 {
 		t.Fatalf("image status=%d type=%s bytes=%d", image.Code, image.Header().Get("Content-Type"), image.Body.Len())
+	}
+	teacher := httptest.NewRecorder()
+	dashboard.ServeHTTP(teacher, httptest.NewRequest(http.MethodGet, "/samples/"+sampleID+"/"+teacherName, nil))
+	if teacher.Code != http.StatusOK || teacher.Header().Get("Content-Type") != "application/json" || teacher.Body.String() != string(teacherData) {
+		t.Fatalf("teacher artifact status=%d type=%s body=%s", teacher.Code, teacher.Header().Get("Content-Type"), teacher.Body.String())
 	}
 
 	setup := httptest.NewRecorder()
@@ -237,14 +255,14 @@ func TestDashboardPreviewsRecordedSampleWithExactCoordinates(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(files) != 10 {
-		t.Fatalf("exported %d files, want manifest, label, setup and seven frames: %v", len(files), files)
+	if len(files) != 11 {
+		t.Fatalf("exported %d files, want manifest, label, setup, seven frames, and one teacher artifact: %v", len(files), files)
 	}
 	var exported Label
 	if err := json.Unmarshal(files[sampleID+".json"], &exported); err != nil {
 		t.Fatal(err)
 	}
-	if exported.Coordinates != label.Coordinates || exported.Frames.Before[0] != sampleID+".cam-0-before.jpg" || exported.SetupFile != sampleID+".setup.json" || len(exported.FrameSequence) != 7 || len(exported.WorldAfter.Darts) != 2 || len(exported.Transition.StillPresent) != 1 {
+	if exported.Coordinates != label.Coordinates || exported.Frames.Before[0] != sampleID+".cam-0-before.jpg" || exported.SetupFile != sampleID+".setup.json" || len(exported.FrameSequence) != 7 || len(exported.WorldAfter.Darts) != 2 || len(exported.Transition.StillPresent) != 1 || len(exported.TeacherArtifacts) != 1 || exported.TeacherArtifacts[0].File != sampleID+"."+teacherName {
 		t.Fatalf("unexpected exported label: %+v", exported)
 	}
 	if string(files[sampleID+".cam-0-before.jpg"]) != string([]byte{0xff, 0xd8, 1, 2, 0xff, 0xd9}) {
@@ -253,12 +271,43 @@ func TestDashboardPreviewsRecordedSampleWithExactCoordinates(t *testing.T) {
 	if len(files[sampleID+".cam-0-middle.jpg"]) == 0 || len(files[sampleID+".setup.json"]) == 0 {
 		t.Fatal("burst frame or setup snapshot missing from export")
 	}
+	if string(files[sampleID+"."+teacherName]) != string(teacherData) {
+		t.Fatal("exported teacher detection lines differ from recorded artifact")
+	}
 	var manifest webDatasetManifest
 	if err := json.Unmarshal(files["_autodarts_manifest.json"], &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if !manifest.Complete || manifest.SampleCount != 1 || manifest.FrameCount != 7 || len(manifest.SampleIDs) != 1 || manifest.SampleIDs[0] != sampleID {
+	if !manifest.Complete || manifest.SampleCount != 1 || manifest.FrameCount != 7 || manifest.ArtifactCount != 1 || len(manifest.SampleIDs) != 1 || manifest.SampleIDs[0] != sampleID {
 		t.Fatalf("unexpected completion manifest: %+v", manifest)
+	}
+}
+
+func TestWebDatasetExportFailsBeforeDownloadWhenATeacherArtifactIsCorrupt(t *testing.T) {
+	output := t.TempDir()
+	sampleID := "20260819T120100.000000000Z-dart-1"
+	directory := filepath.Join(output, sampleID)
+	if err := os.Mkdir(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	artifactName := "teacher-detections.json"
+	if err := os.WriteFile(filepath.Join(directory, artifactName), []byte(`{"changed":true}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	label := Label{
+		SchemaVersion: SchemaVersion, SampleID: sampleID, CapturedAt: time.Now().UTC(), LabelSource: "autodarts",
+		Supervision: "accepted-pseudo-positive", CaptureReason: "teacher-dart-added", ReviewStatus: "unreviewed",
+		TeacherArtifacts: []TeacherArtifact{{Kind: "detections", File: artifactName, Source: "api/state/detections", MediaType: "application/json", SHA256: strings.Repeat("0", 64)}},
+	}
+	data, _ := json.Marshal(label)
+	if err := os.WriteFile(filepath.Join(directory, "label.json"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	response := httptest.NewRecorder()
+	(Dashboard{OutputDir: output}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/export/webdataset.tar", nil))
+	if response.Code != http.StatusInternalServerError || response.Header().Get("Content-Type") == "application/x-tar" || !strings.Contains(response.Body.String(), "checksum mismatch") {
+		t.Fatalf("corrupt artifact export status=%d type=%q body=%q", response.Code, response.Header().Get("Content-Type"), response.Body.String())
 	}
 }
 

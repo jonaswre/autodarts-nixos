@@ -25,7 +25,9 @@ per-camera board ROI, double and treble contours, bull, and calibration points
 captured from Autodarts.
 For teacher-labeled states it also projects every dart coordinate through the
 four-point board-to-camera homography and draws a numbered marker at the impact
-point. Before images show `world_before`; after images show `world_after`.
+point. Accepted-dart previews additionally draw Board Manager's fitted
+tip-to-flight `imageLine` in orange and mark its detected tip. Before images
+show `world_before`; after images show `world_after` and the fitted line.
 
 ## What schema v3 records
 
@@ -58,7 +60,14 @@ The recorder captures two complementary kinds of training samples:
   Detection is running in `Throw`, the Board Manager state has remained
   unchanged, and no motion crosses the complete frame window.
 - Accepted Board Manager state changes provide exact teacher coordinates and a
-  complete before/after set transition.
+  complete before/after set transition. For every accepted dart, the recorder
+  also snapshots Board Manager's raw detection state. This includes each
+  camera's fitted `imageLine` from the dart tip toward its flight, vote image
+  coordinates, intersections, segmentation counts, errors, and timing data.
+  Seven matching Board Manager teacher images (`detection`, `before`, `after`,
+  `diff`, `movement`, `skeleton`, and `export`) are retained alongside it.
+  Every teacher artifact has a source, media type, and SHA-256 digest in
+  `teacher_artifacts`.
 
 Board Manager's raw dart, hand, takeout, wait, and unstable events are retained
 in the bounded `context.recent_events` window on trusted samples. They never
@@ -153,10 +162,11 @@ tar -tf autodarts-webdataset.tar
 
 The response streams directly from the recorded folders and does not create a
 second copy on the appliance. Each key contains its JSON label, every burst
-JPEG, and its sanitized setup JSON. Before download starts, the recorder checks
-that every source is a regular file and verifies every recorded frame SHA-256.
-The final `_autodarts_manifest.json` member has `complete: true`, exact sample
-and frame counts, and the included sample IDs. Training importers must reject
+JPEG, the raw teacher detections and debug images when available, and its
+sanitized setup JSON. Before download starts, the recorder checks that every
+source is a regular file and verifies every recorded frame and teacher-artifact
+SHA-256. The final `_autodarts_manifest.json` member has `complete: true`, exact
+sample, frame, and artifact counts, and the included sample IDs. Training importers must reject
 an archive without this final completion manifest or with counts that do not
 match. Repeat the request later to include newly recorded play.
 

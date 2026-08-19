@@ -3,7 +3,9 @@ package dataset
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -88,6 +90,18 @@ func TestRecorderCapturesOnlyAutodartsTeacherWorldJourney(t *testing.T) {
 	mux.HandleFunc("/api/config/cam/resolution", func(w http.ResponseWriter, _ *http.Request) {
 		json.NewEncoder(w).Encode(map[string]int{"width": 1280, "height": 720})
 	})
+	mux.HandleFunc("/api/state/detections", func(w http.ResponseWriter, _ *http.Request) {
+		json.NewEncoder(w).Encode([]map[string]any{{"detections": []map[string]any{{
+			"imageLine": map[string]float64{"x1": 314.3, "y1": 133, "x2": 428.9, "y2": 368},
+			"vote":      map[string]any{"imageCoords": map[string]float64{"x": 426.5, "y": 367}, "error": 0.0055},
+		}}}})
+	})
+	detectionImage := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write([]byte{0xff, 0xd8, byte(len(r.URL.Path)), 2, 0xff, 0xd9})
+	}
+	mux.HandleFunc("/api/img/detection", detectionImage)
+	mux.HandleFunc("/api/img/detection/", detectionImage)
 	mux.HandleFunc("/api/streams/cams/", func(w http.ResponseWriter, r *http.Request) {
 		camera := r.URL.Path[len("/api/streams/cams/"):]
 		writer := multipart.NewWriter(w)
@@ -333,6 +347,18 @@ func TestRecorderCapturesOnlyAutodartsTeacherWorldJourney(t *testing.T) {
 	}
 	if len(label.FrameSequence) != 9 {
 		t.Fatalf("captured %d frames, want 3 offsets from 3 cameras", len(label.FrameSequence))
+	}
+	if len(label.TeacherArtifacts) != 8 {
+		t.Fatalf("accepted dart retained %d teacher artifacts, want detections plus seven images: %+v", len(label.TeacherArtifacts), label.TeacherArtifacts)
+	}
+	for _, artifact := range label.TeacherArtifacts {
+		data, err := os.ReadFile(filepath.Join(sampleDir, artifact.File))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fmt.Sprintf("%x", sha256.Sum256(data)) != artifact.SHA256 || artifact.Source == "" || artifact.MediaType == "" {
+			t.Fatalf("incomplete teacher artifact: %+v", artifact)
+		}
 	}
 	for _, frame := range label.FrameSequence {
 		if frame.File == "" || frame.CapturedAt.IsZero() || len(frame.SHA256) != 64 || frame.Role == "" {

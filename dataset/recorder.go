@@ -25,28 +25,30 @@ const SchemaVersion = 3
 const maxFrameSkew = 250 * time.Millisecond
 
 type Label struct {
-	SchemaVersion  int                   `json:"schema_version"`
-	SampleID       string                `json:"sample_id"`
-	SessionID      string                `json:"session_id,omitempty"`
-	SetupID        string                `json:"setup_id,omitempty"`
-	SetupFile      string                `json:"setup_file,omitempty"`
-	CapturedAt     time.Time             `json:"captured_at"`
-	LabelSource    string                `json:"label_source"`
-	Supervision    string                `json:"supervision,omitempty"`
-	CaptureReason  string                `json:"capture_reason,omitempty"`
-	HasCoordinates bool                  `json:"has_coordinates"`
-	Coordinates    autodarts.Coordinates `json:"coordinates"`
-	Segment        autodarts.Segment     `json:"segment"`
-	DartIndex      int                   `json:"dart_index"`
-	DartCount      int                   `json:"dart_count"`
-	Frames         FrameFiles            `json:"frames"`
-	FrameSequence  []CapturedFrame       `json:"frame_sequence,omitempty"`
-	WorldBefore    *PhysicalBoardState   `json:"world_before,omitempty"`
-	WorldAfter     *PhysicalBoardState   `json:"world_after,omitempty"`
-	Transition     *WorldTransition      `json:"transition,omitempty"`
-	Context        CaptureContext        `json:"context,omitempty"`
-	ReviewStatus   string                `json:"review_status"`
-	ReviewReasons  []string              `json:"review_reasons,omitempty"`
+	SchemaVersion       int                   `json:"schema_version"`
+	SampleID            string                `json:"sample_id"`
+	SessionID           string                `json:"session_id,omitempty"`
+	SetupID             string                `json:"setup_id,omitempty"`
+	SetupFile           string                `json:"setup_file,omitempty"`
+	CapturedAt          time.Time             `json:"captured_at"`
+	LabelSource         string                `json:"label_source"`
+	Supervision         string                `json:"supervision,omitempty"`
+	CaptureReason       string                `json:"capture_reason,omitempty"`
+	HasCoordinates      bool                  `json:"has_coordinates"`
+	Coordinates         autodarts.Coordinates `json:"coordinates"`
+	Segment             autodarts.Segment     `json:"segment"`
+	DartIndex           int                   `json:"dart_index"`
+	DartCount           int                   `json:"dart_count"`
+	Frames              FrameFiles            `json:"frames"`
+	FrameSequence       []CapturedFrame       `json:"frame_sequence,omitempty"`
+	TeacherArtifacts    []TeacherArtifact     `json:"teacher_artifacts,omitempty"`
+	WorldBefore         *PhysicalBoardState   `json:"world_before,omitempty"`
+	WorldAfter          *PhysicalBoardState   `json:"world_after,omitempty"`
+	Transition          *WorldTransition      `json:"transition,omitempty"`
+	Context             CaptureContext        `json:"context,omitempty"`
+	ReviewStatus        string                `json:"review_status"`
+	ReviewReasons       []string              `json:"review_reasons,omitempty"`
+	teacherArtifactData map[string][]byte
 }
 
 type FrameFiles struct {
@@ -63,6 +65,14 @@ type CapturedFrame struct {
 	SHA256            string    `json:"sha256"`
 	Role              string    `json:"role,omitempty"`
 	WorldState        string    `json:"world_state,omitempty"`
+}
+
+type TeacherArtifact struct {
+	Kind      string `json:"kind"`
+	File      string `json:"file"`
+	Source    string `json:"source"`
+	MediaType string `json:"media_type"`
+	SHA256    string `json:"sha256"`
 }
 
 type RecordedEvent struct {
@@ -327,11 +337,16 @@ func (r *Recorder) Run(ctx context.Context) error {
 			before, after, transition, changed := tracker.observe(state, receivedAt, WorldConfidenceTeacher)
 			if changed {
 				if len(transition.Added) > 0 {
+					artifacts, artifactData, artifactErr := r.captureTeacherArtifacts(ctx)
+					if artifactErr != nil && r.options.OnError != nil {
+						r.options.OnError(fmt.Errorf("capture teacher detection evidence: %w", artifactErr))
+					}
 					for _, dart := range transition.Added {
 						transitionCopy := transition
 						r.scheduleCapture(ctx, receivedAt, fmt.Sprintf("dart-%d", dart.Order), Label{
 							LabelSource: "autodarts", Supervision: "accepted-pseudo-positive", CaptureReason: "teacher-dart-added", HasCoordinates: true,
 							Coordinates: dart.Coordinates, Segment: dart.Segment, DartIndex: dart.Order, DartCount: len(after.Darts),
+							TeacherArtifacts: append([]TeacherArtifact(nil), artifacts...), teacherArtifactData: artifactData,
 							WorldBefore: worldPointer(before), WorldAfter: worldPointer(after), Transition: &transitionCopy,
 							Context: CaptureContext{BoardState: state},
 						})
@@ -371,6 +386,68 @@ func (r *Recorder) Run(ctx context.Context) error {
 			})
 		}
 	}
+}
+
+func (r *Recorder) captureTeacherArtifacts(ctx context.Context) ([]TeacherArtifact, map[string][]byte, error) {
+	type request struct {
+		kind, file, source, variant string
+		json                        bool
+	}
+	requests := []request{{kind: "detections", file: "teacher-detections.json", source: "api/state/detections", json: true}}
+	for _, variant := range []string{"", "before", "after", "diff", "movement", "skeleton", "export"} {
+		name := variant
+		if name == "" {
+			name = "detection"
+		}
+		source := "api/img/detection"
+		if variant != "" {
+			source += "/" + variant
+		}
+		requests = append(requests, request{kind: name, file: "teacher-" + name + ".jpg", source: source, variant: variant})
+	}
+	type result struct {
+		artifact TeacherArtifact
+		data     []byte
+		err      error
+	}
+	results := make(chan result, len(requests))
+	captureContext, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	for _, item := range requests {
+		go func() {
+			var data []byte
+			mediaType := "application/json"
+			var err error
+			if item.json {
+				data, err = r.client.Detections(captureContext)
+			} else {
+				data, mediaType, err = r.client.DetectionImage(captureContext, item.variant)
+				if err == nil && (len(data) < 2 || data[0] != 0xff || data[1] != 0xd8) {
+					err = fmt.Errorf("%s did not return JPEG data", item.source)
+				}
+			}
+			if err != nil {
+				results <- result{err: fmt.Errorf("%s: %w", item.source, err)}
+				return
+			}
+			digest := sha256.Sum256(data)
+			results <- result{artifact: TeacherArtifact{Kind: item.kind, File: item.file, Source: item.source, MediaType: mediaType, SHA256: fmt.Sprintf("%x", digest)}, data: data}
+		}()
+	}
+	data := make(map[string][]byte, len(requests))
+	artifacts := make([]TeacherArtifact, 0, len(requests))
+	var failures []error
+	for range requests {
+		value := <-results
+		if value.err != nil {
+			failures = append(failures, value.err)
+			continue
+		}
+		artifacts = append(artifacts, value.artifact)
+		data[value.artifact.File] = value.data
+	}
+	sort.Slice(artifacts, func(i, j int) bool { return artifacts[i].Kind < artifacts[j].Kind })
+	return artifacts, data, errors.Join(failures...)
 }
 
 func (r *Recorder) waitForStableBoardState(ctx context.Context, events <-chan autodarts.Event, failures <-chan error) (autodarts.BoardState, error) {
@@ -866,6 +943,21 @@ func (r *Recorder) capture(ctx context.Context, capturedAt time.Time, suffix str
 		}
 		if item.offset == r.options.PostDelay {
 			files.After[item.camera] = name
+		}
+	}
+	for _, artifact := range label.TeacherArtifacts {
+		if !safeArtifactName(artifact.File) {
+			return fmt.Errorf("unsafe teacher artifact name %q", artifact.File)
+		}
+		data, ok := label.teacherArtifactData[artifact.File]
+		if !ok {
+			return fmt.Errorf("teacher artifact %q has no captured data", artifact.File)
+		}
+		if fmt.Sprintf("%x", sha256.Sum256(data)) != artifact.SHA256 {
+			return fmt.Errorf("teacher artifact %q checksum mismatch", artifact.File)
+		}
+		if err := os.WriteFile(filepath.Join(temporary, artifact.File), data, 0600); err != nil {
+			return err
 		}
 	}
 	setup, context := r.captureMetadata(label.Context.BoardState, capturedAt)

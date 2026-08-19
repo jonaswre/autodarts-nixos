@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -109,6 +110,37 @@ func TestUserCanReadBoardManagerPlainTextVersion(t *testing.T) {
 	}
 	if version != "1.0.7" {
 		t.Fatalf("version = %q, want 1.0.7", version)
+	}
+}
+
+func TestUserCanReadDetectionLinesAndTeacherImages(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/state/detections":
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`[{"detections":[{"imageLine":{"x1":10,"y1":20,"x2":30,"y2":40}}]}]`))
+		case "/api/img/detection/skeleton":
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.Write([]byte{0xff, 0xd8, 1, 2, 0xff, 0xd9})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	client, err := New(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	detections, err := client.Detections(context.Background())
+	if err != nil || !json.Valid(detections) || !strings.Contains(string(detections), "imageLine") {
+		t.Fatalf("detection state = %s, err=%v", detections, err)
+	}
+	image, mediaType, err := client.DetectionImage(context.Background(), "skeleton")
+	if err != nil || mediaType != "image/jpeg" || len(image) != 6 {
+		t.Fatalf("teacher image bytes=%d type=%q err=%v", len(image), mediaType, err)
+	}
+	if _, _, err := client.DetectionImage(context.Background(), "../config"); err == nil {
+		t.Fatal("unsafe detection image variant was accepted")
 	}
 }
 
