@@ -66,7 +66,7 @@ func TestDashboardOffersDetectedBoardFeatureOverlay(t *testing.T) {
 		"Number(b.label.has_coordinates)-Number(a.label.has_coordinates)",
 		"preview_darts?.after",
 		"Reconstructed 3D board world",
-		"Interactive realistic 3D reconstruction",
+		"Interactive realistic 3D dartboard reconstruction",
 		"Drag to orbit",
 		"mountWorld3D",
 		"scene.board_radius_mm",
@@ -81,10 +81,21 @@ func TestDashboardOffersDetectedBoardFeatureOverlay(t *testing.T) {
 		"barrelEnd=at(75)",
 		"shaftEnd=at(118)",
 		"updatePinch",
+		"Open 3D preview",
+		"id=\"world3dDialog\"",
+		"id=\"world3dCanvas\"",
+		"data-open-world3d",
+		"localStorage.getItem(world3dStorageKey)",
+		"localStorage.setItem(world3dStorageKey",
+		"rememberWorld3DViewport",
+		"closeWorld3DRenderer",
 	} {
 		if !strings.Contains(body, visibleBehavior) {
 			t.Fatalf("dashboard is missing board-feature preview behavior %q", visibleBehavior)
 		}
+	}
+	if strings.Count(body, `id="world3dCanvas"`) != 1 {
+		t.Fatal("dashboard must expose exactly one reusable 3D canvas")
 	}
 }
 
