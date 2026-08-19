@@ -65,6 +65,13 @@ func TestDashboardOffersDetectedBoardFeatureOverlay(t *testing.T) {
 		"l.has_coordinates?after+before",
 		"Number(b.label.has_coordinates)-Number(a.label.has_coordinates)",
 		"preview_darts?.after",
+		"Reconstructed 3D board world",
+		"Interactive 3D reconstruction",
+		"Drag to orbit",
+		"mountWorld3D",
+		"scene.board_radius_mm",
+		"d.fit_residual_degrees",
+		"camera.center_mm",
 	} {
 		if !strings.Contains(body, visibleBehavior) {
 			t.Fatalf("dashboard is missing board-feature preview behavior %q", visibleBehavior)

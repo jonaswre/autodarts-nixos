@@ -67,7 +67,7 @@ func (c *Catalog) AddPath(label Label, directory string) error {
 	if err != nil {
 		return err
 	}
-	entry := SampleEntry{Label: label, Size: size, PreviewDarts: previewDartsForLabel(c.outputDir, label)}
+	entry := sampleEntry(c.outputDir, label, size)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if existing, ok := c.samples[label.SampleID]; ok {
@@ -133,11 +133,20 @@ func scanStoredSamples(outputDir string) ([]storedSample, int64, error) {
 		}
 		used += size
 		result = append(result, storedSample{
-			entry:         SampleEntry{Label: label, Size: size, PreviewDarts: previewDartsForLabel(outputDir, label)},
+			entry:         sampleEntry(outputDir, label, size),
 			trainingReady: isTrainingReady(label),
 		})
 	}
 	return result, used, nil
+}
+
+func sampleEntry(outputDir string, label Label, size int64) SampleEntry {
+	setup, _ := loadPreviewSetup(outputDir, label)
+	return SampleEntry{
+		Label: label, Size: size,
+		PreviewDarts: previewDartsWithSetup(setup, label),
+		Preview3D:    reconstructPreview3D(outputDir, label, setup),
+	}
 }
 
 func directorySize(directory string) (int64, error) {
@@ -161,6 +170,13 @@ func directorySize(directory string) (int64, error) {
 func previewDartsForLabel(outputDir string, label Label) *PreviewDarts {
 	setup, err := loadPreviewSetup(outputDir, label)
 	if err != nil {
+		return nil
+	}
+	return previewDartsWithSetup(setup, label)
+}
+
+func previewDartsWithSetup(setup *previewSetup, label Label) *PreviewDarts {
+	if setup == nil {
 		return nil
 	}
 	before := label.WorldBefore

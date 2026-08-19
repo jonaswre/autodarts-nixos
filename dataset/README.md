@@ -28,6 +28,14 @@ four-point board-to-camera homography and draws a numbered marker at the impact
 point. Accepted-dart previews additionally draw Board Manager's fitted
 tip-to-flight `imageLine` in orange and mark its detected tip. Before images
 show `world_before`; after images show `world_after` and the fitted line.
+Accepted darts also get an interactive, orbitable 3D reconstruction. The
+recorder combines the board-plane homography with each camera's intrinsic
+matrix to recover its board-relative pose. Every 2D `imageLine` becomes a plane
+through its camera; a least-squares plane intersection gives the dart shaft
+direction. The exact teacher coordinate anchors the tip at
+`z = 0`. The preview reports millimetres, contributing camera-line count, and
+angular fit residual. Its 140 mm dart length is explicitly a visualization
+length; the direction and tip are the reconstructed quantities.
 
 ## What schema v3 records
 
