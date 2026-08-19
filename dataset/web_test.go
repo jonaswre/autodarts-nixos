@@ -57,10 +57,13 @@ func TestDashboardOffersDetectedBoardFeatureOverlay(t *testing.T) {
 		"Calibration</span>",
 		"Teacher dart</span>",
 		"Tip-flight line</span>",
+		"Accepted throws first",
 		"dart-marker",
 		"teacher-detection-line",
 		"teacherLinesFor",
 		"detection?.imageLine",
+		"l.has_coordinates?after+before",
+		"Number(b.label.has_coordinates)-Number(a.label.has_coordinates)",
 		"preview_darts?.after",
 	} {
 		if !strings.Contains(body, visibleBehavior) {
