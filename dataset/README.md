@@ -36,6 +36,11 @@ direction. The exact teacher coordinate anchors the tip at
 `z = 0`. The preview reports millimetres, contributing camera-line count, and
 angular fit residual. Its 140 mm dart length is explicitly a visualization
 length; the direction and tip are the reconstructed quantities.
+The default renderer uses regulation scoring radii, alternating sisal fields,
+red/green double and treble beds, spider wires, sector numbers, a board cabinet
+and layered steel-tip dart geometry (point, barrel, shaft, and flights). Users
+can orbit or zoom the scene, switch to a straight-on view, and optionally show
+the calibrated camera positions and sight lines.
 
 ## What schema v3 records
 
